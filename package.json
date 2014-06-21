@@ -1,0 +1,48 @@
+{
+  "name": "exam",
+  "description": "Test runner",
+  "keywords": [
+    "exam"
+  ],
+  "version": "0.0.0",
+  "main": "exam.js",
+  "homepage": "http://github.com/zerious/exam",
+  "repository": "http://github.com/zerious/exam.git",
+  "bugs": {
+    "url": "http://github.com/zerious/exam/issues"
+  },
+  "author": {
+    "name": "Sam Eubank",
+    "email": "sameubank@gmail.com"
+  },
+  "contributors": [
+    {
+      "name": "Sam Eubank",
+      "email": "sameubank@gmail.com"
+    }
+  ],
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://github.com/zerious/exam/blob/master/MIT-LICENSE.md"
+    }
+  ],
+  "engines": [
+    "node >= 0.2.6"
+  ],
+  "scripts": {
+    "test": "mocha",
+    "retest": "mocha --watch",
+    "cover": "istanbul cover _mocha",
+    "report": "open coverage/lcov-report/index.html",
+    "coveralls": "istanbul cover _mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "zeriousify": "0.1.4",
+    "assert-plus": "0.1.5",
+    "mocha": "1.18.2",
+    "istanbul": "0.2.9",
+    "coveralls": "2.10.0"
+  }
+}
