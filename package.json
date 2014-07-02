@@ -6,6 +6,7 @@
   ],
   "version": "0.0.0",
   "main": "exam.js",
+  "bin": "commands/exam-cli.js",
   "homepage": "http://github.com/zerious/exam",
   "repository": "http://github.com/zerious/exam.git",
   "bugs": {
@@ -37,7 +38,9 @@
     "report": "open coverage/lcov-report/index.html",
     "coveralls": "istanbul cover _mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
   },
-  "dependencies": {},
+  "dependencies": {
+    "ems": "^0.1.14"
+  },
   "devDependencies": {
     "zeriousify": "0.1.4",
     "assert-plus": "0.1.5",
