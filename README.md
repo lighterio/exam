@@ -25,11 +25,18 @@ mkdir test
 
 Write some tests...
 ```javascript
-on("Array", function () {
-  on('#indexOf()', function () {
+describe("Array", function () {
+  var a = [1,2,3];
+  describe('#indexOf()', function () {
     it("returns -1 when a value isn't found", function () {
-      is(-1, [1,2,3].indexOf(5));
-      is(-1, [1,2,3].indexOf(0));
+      is(a.indexOf(5), -1);
+      is(a.indexOf(0), -1);
+      is(a.indexOf(-1), -1);
+    });
+    it("returns an index when a value is", function () {
+      is(a.indexOf(1), 0);
+      is(a.indexOf(2), 1);
+      is(a.indexOf(3), 1);
     });
   });
 });
@@ -43,8 +50,8 @@ exam
 
 Exam exposes global functions which you can use in your tests.
 
-* `describe(title, fn)` runs `fn` as a suite of tests for a module.
-* `it(does, fn)` runs `fn` as a test for something a module does.
+* `describe(title, fn)` runs `fn` as a suite of tests.
+* `it(does, fn)` runs `fn` to test what something does.
 * `is(actual, expected)` asserts equality.
 * `before(fn)` runs `fn` before a suite.
 * `beforeEach(fn)` runs `fn` before each test in a suite.
@@ -53,21 +60,36 @@ Exam exposes global functions which you can use in your tests.
 
 ## Assertions
 
-You can use exam's `is` assertions, or any other assertion library you want.
+You can use exam's `is` assertion library, or any other assertion library you want.
 
 ## is
-The `is` object contains chainable assertion methods, and is an assertion method
-itself (AKA `is.is`).
+The `is` object contains chainable assertion methods. For example:
+
+```
+var a = [1, 2, 3];
+is
+  .array(a)
+  .same(a, [1,2,3])
+  .number(a[0])
+  .is(a[0], true)
+  .tis(a[0], 1)
+  .greater(a[2], a[1])
+  .false(a[0] == a[1])
+  .truey(a[0])
+  .truey(a)
+
+```
 
 * `is(actual, expected)` or `is.is(actual, expected)` asserts `actual == expected`.
 * `is.not(actual, expected)` asserts `actual != expected`.
-* `is.equal(actual, expected)` asserts `actual === expected`.
-* `is.notEqual(actual, expected)` asserts `actual !== expected`.
+* `is.tis(actual, expected)` asserts `actual === expected`.
+* `is.tisNot(actual, expected)` asserts `actual !== expected`.
 * `is.same(actual, expected)` asserts `stringify(actual) == stringify(expected)`.
 * `is.notSame(actual, expected)` asserts `stringify(actual) != stringify(expected)`.
-* `is.ok(value)` asserts `!!value`.
-* `is.notOk(value)` asserts `!value`.
+* `is.truey(value)` asserts `!!value`.
+* `is.falsey(value)` asserts `!value`.
 * `is.fail()` throws an Error.
 
+```
 
-...
+<!--children|waits|timeout|slowTime|slowerTime|report-->

@@ -32,22 +32,21 @@
     "node >= 0.2.6"
   ],
   "scripts": {
-    "test": "mocha",
+    "test": "node ./commands/exam-cli",
     "retest": "mocha --watch",
     "cover": "istanbul cover _mocha",
     "report": "open coverage/lcov-report/index.html",
     "coveralls": "istanbul cover _mocha --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
   },
   "dependencies": {
-    "ems": "^0.1.15",
-    "esprima": "^1.2.2"
+    "esprima": "1.2.2"
   },
   "devDependencies": {
     "assert-plus": "0.1.5",
-    "coffee-script": "^1.7.1",
+    "coffee-script": "1.7.1",
     "coveralls": "2.10.0",
     "istanbul": "0.2.9",
     "mocha": "1.18.2",
-    "zeriousify": "0.1.4"
+    "zeriousify": "0.1.5"
   }
 }

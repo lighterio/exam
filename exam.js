@@ -1,22 +1,15 @@
 var fs = require('fs');
-var cluster = require('cluster');
-var exec = require('child_process').exec;
 var cacheDir = '../.cache';
 var manifestPath = cacheDir + '/exam-manifest.json';
 var manifest;
 var testDir = 'test';
-var isMaster = cluster.isMaster;
-var cpus = isMaster ? require('os').cpus() : null;
-var workerId = isMaster ? 0 : cluster.worker.id;
 var workers;
-var cwd = process.cwd() + '/';
 var waits = 0;
-var log = console.log;
 var isRunning = false;
 var testFiles = [];
 var tests = [];
 var results = [];
-var time;
+var time = new Date();
 
 var fileIndex = 0;
 var fnIndex = 0;
@@ -29,18 +22,15 @@ var failed = [];
 // The module exports a test runner function.
 var exam = module.exports = function (options) {
   isRunning = true;
-  if (isMaster) {
-    exam.report.start();
-    fork();
-    readManifest();
-  }
-  else {
-    work();
-  }
+  exam.report.start();
+  readManifest();
 };
 
 // Container for test suites.
 exam.children = [];
+
+// Dummy counter designed to never reach zero because "exam" isn't a Suite.
+exam.waits = 1;
 
 // Don't let tests run for more than 2 seconds.
 exam.timeout = 2e3;
@@ -56,6 +46,28 @@ exam.version = require('./package.json').version;
 // Default to the console reporter.
 exam.report = require('./lib/reporters/console');
 
+// Start the test if a worker was passed a list of files.
+var args = process.argv;
+var last = process.argv[args.length - 1];
+if (last.indexOf('exam:') === 0) {
+  testFiles = last.substr(5).split('|');
+
+  global.is = require('./lib/is');
+  // TODO: Make continuation configurable.
+  global.is.enableContinuation();
+  global.mock = require('./lib/mock');
+  global.unmock = global.mock.unmock;
+  global.it = it;
+  global.describe = describe;
+  global.before = global.setup = before;
+  global.after = global.teardown = after;
+  global.beforeEach = beforeEach;
+  global.afterEach = afterEach;
+
+  testFiles.forEach(runTestFile);
+  setImmediate(runNextFn);
+}
+
 function readManifest() {
   fs.readFile(manifestPath, function (err, content) {
     manifest = err ? null : JSON.parse(content);
@@ -63,74 +75,81 @@ function readManifest() {
   });
 }
 
-// TODO: Make this work on Windows.
 function findTests() {
-  var command = exec('find ' + testDir, function (err, output) {
-    if (err) throw err;
-    var paths = output.split(/\n/);
-    paths.forEach(function (path) {
-      var extension = path.replace(/^.*\./, '.');
-      if (require.extensions[extension] && (extension != '.json')) {
-        testFiles.push(path);
-      }
-    });
-    assignTests();
-  });
-}
 
-function fork() {
-  workers = [];
-  cpus.forEach(function () {
-    var worker = cluster.fork();
-    worker.files = [];
-    workers.push(worker);
-    // When we receive a message from a worker, add it to the test results.
-    worker.on('message', function (result) {
-      if (result[0]) {
-        outputs.push(result[0]);
-      }
-      passed += result[1];
-      if (typeof result[2] == 'number') {
-        failed += result[2];
-      }
-      else {
-        result[2].forEach(function (failure) {
-          failed.push(failure);
-        });
-      }
+  function read(dir) {
+    waits++;
+    fs.readdir(dir, function (err, files) {
+      if (err) throw err;
+      files.forEach(function (file) {
+        if (file != '.' && file != '..') {
+          var path = dir + '/' + file;
+          waits++;
+          fs.stat(path, function (err, stat) {
+            if (err) throw err;
+            if (stat.isDirectory()) {
+              read(path);
+            }
+            else {
+              var extension = path.replace(/^.*\./, '.');
+              if (require.extensions[extension] && (extension != '.json')) {
+                testFiles.push(path);
+              }
+            }
+            if (!--waits) {
+              assignTests();
+            }
+          });
+        }
+      });
       if (!--waits) {
-        finishAll();
+        assignTests();
       }
     });
-  });
+  }
+  read(testDir);
 }
 
 // TODO: Assign tests based on past runtimes from the manifest.
 function assignTests() {
+  var fork = require('child_process').fork;
+  var cpus = require('os').cpus();
+  var forkCount = Math.min(testFiles.length, cpus.length);
+  var workers = [];
+  for (var i = 0; i < forkCount; i++) {
+    workers[i] = [];
+  }
   testFiles.forEach(function (file, index) {
-    var worker = workers[index % cpus.length];
-    worker.files.push(file);
+    workers[index % forkCount].push(file);
   });
-  time = new Date();
-  workers.forEach(function (worker) {
-    var files = worker.files;
-    if (files.length) {
-      ++waits;
-      worker.send(files);
-    }
+  waits = forkCount;
+  workers.forEach(function (args, index) {
+    var worker = workers[index] = fork(__filename, ['exam:' + args.join('|')]);
+    worker.on('message', receiveResult);
   });
 }
 
-function work() {
-  process.on('message', function (files) {
-    files.forEach(runTestFile);
-    runNextFn();
-  });
+function receiveResult(result) {
+  if (result[0]) {
+    outputs.push(result[0]);
+  }
+  passed += result[1];
+  if (typeof result[2] == 'number') {
+    failed += result[2];
+  }
+  else {
+    result[2].forEach(function (failure) {
+      failed.push(failure);
+    });
+  }
+  if (!--waits) {
+    finishAll();
+  }
 }
 
 function runTestFile(file) {
   try {
-    require(cwd + file);
+    require(process.cwd() + '/' + file);
   }
   catch (e) {
     console.error(e);
@@ -141,6 +160,7 @@ function finishOneWorker() {
   isRunning = false;
   var result = exam.report.file(exam);
   process.send(result);
+  process.exit();
 }
 
 function finishAll() {
@@ -156,20 +176,33 @@ function Suite(title, fn) {
   this.beforeEach = null;
   this.afterEach = null;
   this.children = [];
+  this.waits = 0;
   this.error = null;
-  this.parent = findCallerProperty('_EXAM_SUITE') || exam;
-  this.parent.children.push(this);
+  var parent = this.suite = findCallerProperty('_EXAM_SUITE') || exam;
+  parent.children.push(this);
+  parent.waits++;
   defineProperty(fn, '_EXAM_SUITE', this);
 }
+
+Suite.prototype.done = function () {
+  var suite = this;
+  if (suite.after) {
+    suite.after();
+  }
+  var parent = suite.suite;
+  if (!--parent.waits) {
+    parent.done();
+  }
+};
 
 function Test(does, fn) {
   this.does = does;
   this.doneCount = 0;
   this.error = null;
   this.results = [];
-  this.time = null;
-  this.suite = findCallerProperty('_EXAM_SUITE');
-  this.suite.children.push(this);
+  var parent = this.suite = findCallerProperty('_EXAM_SUITE') || exam;
+  parent.children.push(this);
+  parent.waits++;
   defineProperty(fn, '_EXAM_TEST', this);
   tests.push(this);
 }
@@ -177,21 +210,28 @@ function Test(does, fn) {
 Test.prototype.done = function (error) {
   var test = this;
   test.doneCount++;
-  if (error) {
-    exam.report.fail();
-    test.results.push(error);
+  if (test.doneCount === 2) {
+    error = new Error('Test called "done" multiple times.');
   }
-  if (test.doneCount > 1) {
-    exam.report.fail();
-    test.results.push(new Error('Test called "done" multiple times.'));
+  else {
+    var suite = test.suite;
+    if (suite.afterEach) {
+      suite.afterEach();
+    }
+    if (!--suite.waits) {
+      suite.done();
+    }
+    setImmediate(runNextFn);
+  }
+  if (error) {
+    if (!test.error) {
+      exam.report.fail();
+      test.error = error;
+    }
+    test.results.push(error);
   }
   else {
     exam.report.pass();
-    test.time = new Date() - test.time;
-    if (test.suite.afterEach) {
-      test.suite.afterEach();
-    }
-    runNextFn();
   }
 };
 
@@ -241,9 +281,10 @@ function runSuite(fn) {
     fn();
   }
   catch (e) {
+    console.error(e);
     fn._EXAM_SUITE.error = e;
   }
-  runNextFn();
+  setImmediate(runNextFn);
 }
 
 function runTest(fn) {
@@ -259,11 +300,11 @@ function runTest(fn) {
     if (suite.beforeEach) {
       suite.beforeEach();
     }
-    test.time = new Date();
     if (isAsync) {
       var timer = setTimeout(function () {
-        var error = new Error('Test timed out');
-        test.done(error);
+        var e = new Error('Timeout of ' + exam.timeout + 'ms exceeded.');
+        e.trace = e.stack;
+        test.done(e);
       }, exam.timeout);
       fn(function () {
         clearTimeout(timer);
@@ -286,36 +327,13 @@ function before(fn) {
 }
 
 function after(fn) {
-  var suite = findCallerProperty('_EXAM_SUITE');
-  if (suite) {
-    suite.after = fn;
-  }
+  (findCallerProperty('_EXAM_SUITE') || exam).after = fn;
 }
 
 function beforeEach(fn) {
-  var suite = findCallerProperty('_EXAM_SUITE');
-  if (suite) {
-    suite.beforeEach = fn;
-  }
+  (findCallerProperty('_EXAM_SUITE') || exam).beforeEach = fn;
 }
 
 function afterEach(fn) {
-  var suite = findCallerProperty('_EXAM_SUITE');
-  if (suite) {
-    suite.afterEach = fn;
-  }
-}
-
-if (!isMaster) {
-  global.is = require('./lib/is');
-  // TODO: Make continuation configurable.
-  global.is.enableContinuation();
-  global.mock = require('./lib/mock');
-  global.unmock = global.mock.unmock;
-  global.it = it;
-  global.describe = describe;
-  global.before = global.setup = before;
-  global.after = global.teardown = after;
-  global.beforeEach = beforeEach;
-  global.afterEach = afterEach;
+  (findCallerProperty('_EXAM_SUITE') || exam).afterEach = fn;
 }
