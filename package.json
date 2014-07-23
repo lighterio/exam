@@ -4,9 +4,9 @@
   "keywords": [
     "exam"
   ],
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "exam.js",
-  "bin": "commands/exam-cli.js",
+  "bin": "exam.js",
   "homepage": "http://github.com/zerious/exam",
   "repository": "http://github.com/zerious/exam.git",
   "bugs": {
@@ -32,21 +32,18 @@
     "node >= 0.2.6"
   ],
   "scripts": {
-    "test": "node ./commands/exam-cli",
-    "retest": "node ./commands/exam-cli --watch",
-    "cover": "istanbul cover ./commands/exam-cli.js",
+    "test": "./exam",
+    "retest": "./exam --watch",
+    "cover": "istanbul cover ./exam.js --one-core",
     "report": "open coverage/lcov-report/index.html",
-    "coveralls": "istanbul cover ./commands/exam-cli.js --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
+    "coveralls": "istanbul cover ./exam.js --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
   },
-  "dependencies": {
-    "esprima": "1.2.2"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "coveralls": "2.11.1",
+    "istanbul": "0.3.0",
+    "zeriousify": "0.1.7",
     "assert-plus": "0.1.5",
-    "coffee-script": "1.7.1",
-    "coveralls": "2.10.0",
-    "istanbul": "0.2.9",
-    "mocha": "1.18.2",
-    "zeriousify": "0.1.6"
+    "mocha": "1.18.2"
   }
 }

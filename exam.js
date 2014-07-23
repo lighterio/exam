@@ -1,8 +1,11 @@
-var fs = require('fs');
+#!/usr/bin/env node
 
+// Exam exposes a function that runs a test suite, by default in in [cwd]/test
 var exam = module.exports = function () {
 
-  var cacheDir = process.cwd() + '/.cache';
+  var fs = require('fs');
+  var cwd = process.cwd();
+  var cacheDir = cwd + '/.cache';
   var manifestPath = cacheDir + '/exam-manifest.json';
   var manifest;
   var testDir = 'test';
@@ -34,12 +37,14 @@ var exam = module.exports = function () {
     function read(dir) {
       waits++;
       fs.readdir(dir, function (err, list) {
+        /* istanbul ignore next */
         if (err) throw err;
         list.forEach(function (file) {
           if (file != '.' && file != '..') {
             var path = dir + '/' + file;
             waits++;
             fs.stat(path, function (err, stat) {
+              /* istanbul ignore next */
               if (err) throw err;
               if (stat.isDirectory()) {
                 read(path);
@@ -66,6 +71,16 @@ var exam = module.exports = function () {
 
   // TODO: Assign tests based on past runtimes from the manifest.
   function assignTests() {
+
+    // If exam is being run by istanbul, forking would prevent increments.
+    if (process.env.running_under_istanbul) {
+      var arg = JSON.stringify({files: files});
+      process.argv.push(arg);
+      process.send = receiveResult;
+      waits = 1;
+      require('./lib/run');
+      return;
+    }
 
     // Prepare to fork at most once per CPU, and at most once per file.
     var fork = require('child_process').fork;
@@ -152,4 +167,10 @@ var exam = module.exports = function () {
 
 };
 
-exam.version = require('./package.json').version;
+exam.version = '0.0.2';
+
+// If node loaded this file directly, run the tests.
+if ((process.mainModule.filename == __filename) && !process._EXAM) {
+  process._EXAM = exam;
+  exam();
+}
