@@ -34,7 +34,7 @@
   "scripts": {
     "test": "./exam.js",
     "retest": "./exam.js --watch",
-    "cover": "istanbul cover ./exam.js --one-core",
+    "cover": "istanbul cover ./exam.js",
     "report": "open coverage/lcov-report/index.html",
     "coveralls": "istanbul cover ./exam.js --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
   },
