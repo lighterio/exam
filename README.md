@@ -88,7 +88,7 @@ is
 * `is.notSame(actual, expected)` asserts `stringify(actual) != stringify(expected)`.
 * `is.truey(value)` asserts `!!value`.
 * `is.falsey(value)` asserts `!value`.
-* `is.fail()` throws an Error.
+* `is._FAIL()` throws an Error.
 
 ```
 

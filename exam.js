@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Exam exposes a function that runs a test suite, by default in in [cwd]/test
-var exam = module.exports = function () {
+var exam = module.exports = function (options) {
 
   var fs = require('fs');
   var cwd = process.cwd();
@@ -13,10 +13,10 @@ var exam = module.exports = function () {
   var waits = 0;
   var files = [];
   var time = new Date();
-  var outputs = [''];
+  var outputs = [];
   var passed = 0;
   var failed = [];
-  var reporter = require('./lib/reporters/console');
+  var reporter = require('./lib/reporters/' + options.reporter);
 
   reporter.start();
   readManifest();
@@ -74,7 +74,8 @@ var exam = module.exports = function () {
 
     // If exam is being run by istanbul, forking would prevent increments.
     if (process.env.running_under_istanbul) {
-      var arg = JSON.stringify({files: files});
+      options.files = files;
+      var arg = JSON.stringify(options);
       process.argv.push(arg);
       process.send = receiveResult;
       waits = 1;
@@ -128,7 +129,8 @@ var exam = module.exports = function () {
     waits = forkCount;
     files = [];
     workers.forEach(function (files, index) {
-      var arg = JSON.stringify({files: files});
+      options.files = files;
+      var arg = JSON.stringify(options);
       var worker = workers[index] = fork(forkFile, [arg]);
       worker.on('message', receiveResult);
     });
@@ -157,9 +159,7 @@ var exam = module.exports = function () {
     files.sort(function (a, b) {
       return b.time - a.time;
     });
-    manifest = {
-      files: files
-    };
+    manifest = {files: files};
     fs.mkdir(cacheDir, function (err) {
       fs.writeFile(manifestPath, JSON.stringify(manifest));
     });
@@ -171,6 +171,23 @@ exam.version = '0.0.2';
 
 // If node loaded this file directly, run the tests.
 if ((process.mainModule.filename == __filename) && !process._EXAM) {
+  var argv = process.argv;
+  var options = {
+    reporter: 'console',
+    watch: false
+  };
+  argv.forEach(function (arg, index) {
+    if (arg == '-R' || arg == '--reporter') {
+      options.reporter = argv[index + 1];
+    }
+    else if (arg == '-w' || arg == '--watch') {
+      options.watch = true;
+    }
+  });
+  Object.defineProperty(process, '_EXAM', {
+    enumerable: false,
+    value: exam
+  });
   process._EXAM = exam;
-  exam();
+  exam(options);
 }

@@ -4,7 +4,7 @@
   "keywords": [
     "exam"
   ],
-  "version": "0.0.2",
+  "version": "0.0.3",
   "main": "exam.js",
   "bin": "exam.js",
   "homepage": "http://github.com/zerious/exam",
@@ -40,10 +40,10 @@
   },
   "dependencies": {},
   "devDependencies": {
+    "assert-plus": "0.1.5",
     "coveralls": "2.11.1",
     "istanbul": "0.3.0",
-    "zeriousify": "0.1.7",
-    "assert-plus": "0.1.5",
-    "mocha": "1.18.2"
+    "mocha": "^1.21.0",
+    "zeriousify": "0.1.7"
   }
 }

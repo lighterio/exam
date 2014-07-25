@@ -1,4 +1,5 @@
 var exam = require('../exam');
+var is = require('../lib/is');
 var pkg = require('../package');
 
 require('zeriousify').test();
