@@ -17,18 +17,29 @@ var exam = module.exports = function (options) {
   var passed = 0;
   var failed = [];
   var reporter = require('./lib/reporters/' + options.reporter);
+  var ignore = {};
 
   reporter.start();
   readManifest();
   findTests();
 
+  function unwait() {
+    if (!--waits) {
+      assignTests();
+    }
+  }
+
+  function handle(err) {
+    if (err) {
+      throw err;
+    }
+  }
+
   function readManifest() {
     waits++;
     fs.readFile(manifestPath, function (err, content) {
-      manifest = err ? null : JSON.parse(content);
-      if (!--waits) {
-        assignTests();
-      }
+      manifest = JSON.parse(content || '{}');
+      unwait();
     });
   }
 
@@ -37,15 +48,19 @@ var exam = module.exports = function (options) {
     function read(dir) {
       waits++;
       fs.readdir(dir, function (err, list) {
-        /* istanbul ignore next */
-        if (err) throw err;
+        handle(err);
         list.forEach(function (file) {
-          if (file != '.' && file != '..') {
+          if (file != '.' && file != '..' && !ignore[file]) {
             var path = dir + '/' + file;
+            if (file == '.examignore') {
+              var lines = ('' + fs.readFileSync(path)).split(/\s*[\n\r]+\s*/);
+              lines.forEach(function (name) {
+                ignore[name] = true;
+              });
+            }
             waits++;
             fs.stat(path, function (err, stat) {
-              /* istanbul ignore next */
-              if (err) throw err;
+              handle(err);
               if (stat.isDirectory()) {
                 read(path);
               }
@@ -55,15 +70,11 @@ var exam = module.exports = function (options) {
                   files.push(path);
                 }
               }
-              if (!--waits) {
-                assignTests();
-              }
+              unwait();
             });
           }
         });
-        if (!--waits) {
-          assignTests();
-        }
+        unwait();
       });
     }
     read(testDir);
@@ -72,20 +83,22 @@ var exam = module.exports = function (options) {
   // TODO: Assign tests based on past runtimes from the manifest.
   function assignTests() {
 
+    var fork = require('child_process').fork;
+    var cpus = require('os').cpus();
+
     // If exam is being run by istanbul, forking would prevent increments.
     if (process.env.running_under_istanbul) {
-      options.files = files;
-      var arg = JSON.stringify(options);
-      process.argv.push(arg);
+      manifest.files.pop();
       process.send = receiveResult;
-      waits = 1;
-      require('./lib/run');
-      return;
+      cpus = [1];
+      fork = function (path, args) {
+        process.argv.push(args[0]);
+        require(path);
+        return {on: function () {}};
+      };
     }
 
     // Prepare to fork at most once per CPU, and at most once per file.
-    var fork = require('child_process').fork;
-    var cpus = require('os').cpus();
     var forkCount = Math.min(files.length, cpus.length);
     var forkFile = __dirname + '/lib/run.js';
     var workers = [];
@@ -93,31 +106,29 @@ var exam = module.exports = function (options) {
       workers[i] = [];
     }
 
-    if (manifest) {
-      // Create a dictionary of files found this time.
-      var found = {};
-      files.forEach(function (path) {
-        found[path] = true;
-      });
-      // Create a dictionary to confirm files are in the manifest.
-      var manifested = {};
-      // The manifest is sorted by largest to smallest runtime.
-      var sorted = [];
-      manifest.files.forEach(function (file) {
-        var path = file.path;
-        if (found[path]) {
-          manifested[path] = true;
-          sorted.push(path);
-        }
-      });
-      // Push any new files onto the end (as if they ran instantly last time).
-      files.forEach(function (path) {
-        if (!manifested[path]) {
-          sorted.push(path);
-        }
-      });
-      files = sorted;
-    }
+    // Create a dictionary of files found this time.
+    var found = {};
+    files.forEach(function (path) {
+      found[path] = true;
+    });
+    // Create a dictionary to confirm files are in the manifest.
+    var manifested = {};
+    // The manifest is sorted by largest to smallest runtime.
+    var sorted = [];
+    manifest.files.forEach(function (file) {
+      var path = file.path;
+      if (found[path]) {
+        manifested[path] = true;
+        sorted.push(path);
+      }
+    });
+    // Push any new files onto the end (as if they ran instantly last time).
+    files.forEach(function (path) {
+      if (!manifested[path]) {
+        sorted.push(path);
+      }
+    });
+    files = sorted;
 
     var reverse = true;
     files.forEach(function (path, index) {
@@ -167,7 +178,7 @@ var exam = module.exports = function (options) {
 
 };
 
-exam.version = '0.0.2';
+exam.version = '0.0.3';
 
 // If node loaded this file directly, run the tests.
 if ((process.mainModule.filename == __filename) && !process._EXAM) {
