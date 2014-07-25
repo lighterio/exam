@@ -38,7 +38,7 @@ var exam = module.exports = function (options) {
   function readManifest() {
     waits++;
     fs.readFile(manifestPath, function (err, content) {
-      manifest = JSON.parse(content || '{}');
+      manifest = JSON.parse(content || '{"files":[]}');
       unwait();
     });
   }
