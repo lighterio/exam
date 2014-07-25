@@ -38,7 +38,6 @@ describe('is', function () {
   });
 
   describe('.not', function () {
-    beforeEach(reset);
     it('tests inequality', function () {
       reset();
       is.not(1, 0);
