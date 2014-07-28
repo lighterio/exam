@@ -178,7 +178,7 @@ var exam = module.exports = function (options) {
 
 };
 
-exam.version = '0.0.3';
+exam.version = '0.0.4';
 
 // If node loaded this file directly, run the tests.
 if ((process.mainModule.filename == __filename) && !process._EXAM) {

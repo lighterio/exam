@@ -4,7 +4,7 @@
   "keywords": [
     "exam"
   ],
-  "version": "0.0.3",
+  "version": "0.0.4",
   "main": "exam.js",
   "bin": "exam.js",
   "homepage": "http://github.com/zerious/exam",

@@ -1,6 +1,7 @@
 var assert = require('assert');
 
 describe('is', function () {
+  this.timeout(1e3);
 
   var passCount;
   var failCount;
@@ -65,16 +66,16 @@ describe('is', function () {
   it('.notSame asserts deep inequality', function () {
     reset();
     is.notSame({a: 1}, {a: '1'});
-    assert.equal(passCount, 1);
+    unmock(is);
+    is(passCount, 1);
+    is(failCount, 0);
   });
 
   describe('._FAIL', function () {
     it('throws an error', function (done) {
       unmock(is);
-      console.log(is._FAIL.toString());
       try {
         is.setCurrentTest(null);
-        console.log('should fail');
         is._FAIL();
       }
       catch (e) {
