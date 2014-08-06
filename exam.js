@@ -13,15 +13,22 @@ var exam = module.exports = function (options) {
   var waits = 0;
   var files = [];
   var time = new Date();
-  var outputs = [];
-  var passed = 0;
-  var failed = [];
   var reporter = require('./lib/reporters/' + options.reporter);
-  var ignore = {};
+  var ignoreFiles = {};
+  var outputs, passed, failed, only, skipped;
 
+  initResults();
   reporter.start();
   readManifest();
   findTests();
+
+  function initResults() {
+    outputs = [];
+    passed = 0;
+    failed = [];
+    only = 0;
+    skipped = 0;
+  }
 
   function unwait() {
     if (!--waits) {
@@ -50,12 +57,12 @@ var exam = module.exports = function (options) {
       fs.readdir(dir, function (err, list) {
         handle(err);
         list.forEach(function (file) {
-          if (file != '.' && file != '..' && !ignore[file]) {
+          if (file != '.' && file != '..' && !ignoreFiles[file]) {
             var path = dir + '/' + file;
             if (file == '.examignore') {
               var lines = ('' + fs.readFileSync(path)).split(/\s*[\n\r]+\s*/);
               lines.forEach(function (name) {
-                ignore[name] = true;
+                ignoreFiles[name] = true;
               });
             }
             waits++;
@@ -87,7 +94,7 @@ var exam = module.exports = function (options) {
     var cpus = require('os').cpus();
 
     // If exam is being run by istanbul, forking would prevent increments.
-    if (process.env.running_under_istanbul) {
+    if (options.singleProcess) {
       manifest.files.pop();
       process.send = receiveResult;
       cpus = [1];
@@ -147,7 +154,22 @@ var exam = module.exports = function (options) {
     });
   }
 
+  /**
+   * Receive a test result array:
+   *
+   * Result
+   *   0: Output array.
+   *   1: Number of tests that passed.
+   *   2: Array of outputs for failed tests.
+   *   3: Map of runtimes by file path.
+   *   4: Number of tests run in "only" mode.
+   *   5: Number of tests skipped.
+   */
   function receiveResult(result) {
+    if (result[4] && !only) {
+      clearResults();
+      only = result[4];
+    }
     if (result[0]) {
       outputs.push(result[0]);
     }
@@ -164,8 +186,11 @@ var exam = module.exports = function (options) {
     }
   }
 
+  /**
+   * Upon receiving results from all runners, write the report and manifest.
+   */
   function finish() {
-    reporter.all(outputs, passed, failed, time);
+    reporter.all(outputs, passed, failed, time, only, skipped);
     process.emit('exam:finished');
     files.sort(function (a, b) {
       return b.time - a.time;
@@ -178,21 +203,35 @@ var exam = module.exports = function (options) {
 
 };
 
-exam.version = '0.0.4';
+// Expose the version number, but only load package JSON if it's requested.
+Object.defineProperty(exam, 'version', {
+  get: function () {
+    return require('./package.json').version;
+  }
+});
 
 // If node loaded this file directly, run the tests.
 if ((process.mainModule.filename == __filename) && !process._EXAM) {
   var argv = process.argv;
   var options = {
+    parser: 'acorn',
     reporter: 'console',
-    watch: false
+    watch: false,
+    singleProcess: !!process.env.running_under_istanbul
   };
   argv.forEach(function (arg, index) {
-    if (arg == '-R' || arg == '--reporter') {
+    arg = arg.toLowerCase();
+    if (arg == '-r' || arg == '--reporter') {
       options.reporter = argv[index + 1];
+    }
+    else if (arg == '-p' || arg == '--parser') {
+      options.parser = argv[index + 1];
     }
     else if (arg == '-w' || arg == '--watch') {
       options.watch = true;
+    }
+    else if (arg == '-s' || arg == '--single-process') {
+      options.singleProcess = true;
     }
   });
   Object.defineProperty(process, '_EXAM', {

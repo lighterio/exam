@@ -1,10 +1,10 @@
 {
   "name": "exam",
-  "description": "Test runner",
+  "description": "Clustered JavaScript test runner with builtin assertions",
   "keywords": [
     "exam"
   ],
-  "version": "0.0.4",
+  "version": "0.0.5",
   "main": "exam.js",
   "bin": "exam.js",
   "homepage": "http://github.com/zerious/exam",
@@ -38,12 +38,15 @@
     "report": "open coverage/lcov-report/index.html",
     "coveralls": "istanbul cover ./exam.js --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
   },
-  "dependencies": {},
+  "dependencies": {
+    "acorn": "0.6.0"
+  },
   "devDependencies": {
-    "assert-plus": "0.1.5",
     "coveralls": "2.11.1",
+    "esprima": "1.2.2",
     "istanbul": "0.3.0",
-    "mocha": "^1.21.0",
-    "zeriousify": "0.1.7"
+    "zeriousify": "0.1.7",
+    "assert-plus": "0.1.5",
+    "mocha": "1.18.2"
   }
 }

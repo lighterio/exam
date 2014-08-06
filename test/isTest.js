@@ -8,10 +8,10 @@ describe('is', function () {
 
   var reset = function () {
     mock(is, {
-      _PASS: function () {
+      pass: function () {
         passCount++;
       },
-      _FAIL: function () {
+      fail: function () {
         failCount++;
       }
     });
@@ -71,12 +71,12 @@ describe('is', function () {
     is(failCount, 0);
   });
 
-  describe('._FAIL', function () {
+  describe('.fail', function () {
     it('throws an error', function (done) {
       unmock(is);
       try {
         is.setCurrentTest(null);
-        is._FAIL();
+        is.fail();
       }
       catch (e) {
         done();
@@ -86,7 +86,7 @@ describe('is', function () {
       unmock(is);
       var test = {results: []};
       is.setCurrentTest(test);
-      is._FAIL();
+      is.fail();
       is(test.results.length, 1);
     });
   });
