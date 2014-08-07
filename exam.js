@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Exam exposes a function that runs a test suite, by default in in [cwd]/test
+// Exam exposes a function that runs a test suite.
 var exam = module.exports = function (options) {
 
   var fs = require('fs');
@@ -8,7 +8,6 @@ var exam = module.exports = function (options) {
   var cacheDir = cwd + '/.cache';
   var manifestPath = cacheDir + '/exam-manifest.json';
   var manifest;
-  var testDir = 'test';
   var workers;
   var waits = 0;
   var files = [];
@@ -36,12 +35,6 @@ var exam = module.exports = function (options) {
     }
   }
 
-  function handle(err) {
-    if (err) {
-      throw err;
-    }
-  }
-
   function readManifest() {
     waits++;
     fs.readFile(manifestPath, function (err, content) {
@@ -50,45 +43,67 @@ var exam = module.exports = function (options) {
     });
   }
 
+  function handle(error) {
+    error.trace = error.stack;
+    failed.push({title: 'Exam', errors: [error]});
+  }
+
   function findTests() {
 
-    function read(dir) {
+    function read(path) {
       waits++;
-      fs.readdir(dir, function (err, list) {
-        handle(err);
-        list.forEach(function (file) {
-          if (file != '.' && file != '..' && !ignoreFiles[file]) {
-            var path = dir + '/' + file;
-            if (file == '.examignore') {
-              var lines = ('' + fs.readFileSync(path)).split(/\s*[\n\r]+\s*/);
-              lines.forEach(function (name) {
-                ignoreFiles[name] = true;
+      fs.stat(path, function (err, stat) {
+        if (err) {
+          // TODO: Support .coffee and other extensions.
+          if (!/\.js$/.test(path)) {
+            read(path + '.js');
+          }
+          else {
+            handle(err);
+          }
+        }
+        else if (stat.isDirectory()) {
+          waits++;
+          fs.readdir(path, function (err, list) {
+            if (err) {
+              handle(err);
+            }
+            else {
+              list.forEach(function (file) {
+                var filePath = path + '/' + file;
+                if (file == '.examignore') {
+                  var content = '' + fs.readFileSync(filePath);
+                  var lines = content.split(/\s*[\n\r]+\s*/);
+                  lines.forEach(function (name) {
+                    ignoreFiles[name] = true;
+                  });
+                }
+                else if (file != '.' && file != '..' && !ignoreFiles[file]) {
+                  read(filePath);
+                }
               });
             }
-            waits++;
-            fs.stat(path, function (err, stat) {
-              handle(err);
-              if (stat.isDirectory()) {
-                read(path);
-              }
-              else {
-                var extension = path.replace(/^.*\./, '.');
-                if (require.extensions[extension] && (extension != '.json')) {
-                  files.push(path);
-                }
-              }
-              unwait();
-            });
+            unwait();
+          });
+        }
+        else {
+          var extension = path.replace(/^.*\./, '.');
+          if (require.extensions[extension] && (extension != '.json')) {
+            files.push(path);
           }
-        });
+        }
         unwait();
       });
     }
-    read(testDir);
+    options.paths.forEach(read);
   }
 
-  // TODO: Assign tests based on past runtimes from the manifest.
   function assignTests() {
+
+    if (!files.length) {
+      finish();
+      return;
+    }
 
     var fork = require('child_process').fork;
     var cpus = require('os').cpus();
@@ -197,7 +212,7 @@ var exam = module.exports = function (options) {
     });
     manifest = {files: files};
     fs.mkdir(cacheDir, function (err) {
-      fs.writeFile(manifestPath, JSON.stringify(manifest));
+      fs.writeFile(manifestPath, JSON.stringify(manifest, null, '  '));
     });
   }
 
@@ -213,27 +228,38 @@ Object.defineProperty(exam, 'version', {
 // If node loaded this file directly, run the tests.
 if ((process.mainModule.filename == __filename) && !process._EXAM) {
   var argv = process.argv;
+  var start = 2;
   var options = {
     parser: 'acorn',
     reporter: 'console',
     watch: false,
-    singleProcess: !!process.env.running_under_istanbul
+    singleProcess: !!process.env.running_under_istanbul,
+    paths: []
   };
   argv.forEach(function (arg, index) {
-    arg = arg.toLowerCase();
-    if (arg == '-r' || arg == '--reporter') {
-      options.reporter = argv[index + 1];
-    }
-    else if (arg == '-p' || arg == '--parser') {
-      options.parser = argv[index + 1];
-    }
-    else if (arg == '-w' || arg == '--watch') {
-      options.watch = true;
-    }
-    else if (arg == '-s' || arg == '--single-process') {
-      options.singleProcess = true;
+    if (index >= start) {
+      arg = arg.toLowerCase();
+      if (arg == '-r' || arg == '--reporter') {
+        options.reporter = argv[index + 1];
+        argv[index + 1] = null;
+      }
+      else if (arg == '-p' || arg == '--parser') {
+        options.parser = argv[index + 1];
+        argv[index + 1] = null;
+      }
+      else if (arg == '-w' || arg == '--watch') {
+        options.watch = true;
+      }
+      else if (arg == '-s' || arg == '--single-process') {
+        options.singleProcess = true;
+      }
+      else if (arg) {
+        options.paths.push(arg);
+      }
     }
   });
+  options.paths[0] = options.paths[0] || 'test';
+
   Object.defineProperty(process, '_EXAM', {
     enumerable: false,
     value: exam
