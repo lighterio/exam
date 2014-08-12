@@ -1,40 +1,119 @@
 #!/usr/bin/env node
 
+var cwd = process.cwd();
+
 // Exam exposes a function that runs a test suite.
 var exam = module.exports = function (options) {
 
   var fs = require('fs');
-  var cwd = process.cwd();
   var cacheDir = cwd + '/.cache';
   var manifestPath = cacheDir + '/exam-manifest.json';
-  var manifest;
-  var workers;
-  var waits = 0;
-  var files = [];
-  var time = new Date();
+  var manifest, workers;
   var reporter = require('./lib/reporters/' + options.reporter);
-  var ignoreFiles = {};
+
+  // Save the state of the current run.
+  var waits, files, time, ignoreFiles;
+
+  // Remember which paths we're watching so we don't exhaust them.
+  var isWatching = {};
+
+  // Prevent triggering a re-run when we're already running.
+  var isRunning = false;
+
+  // Save test results that are reported by each worker.
   var outputs, passed, failed, hasOnly, skipped;
 
-  initResults();
-  reporter.start();
-  readManifest();
-  findTests();
+  start();
 
+  /**
+   * Kick off a test run (or re-run).
+   */
+  function start() {
+    waits = 0;
+    files = [];
+    time = new Date();
+    ignoreFiles = {};
+    isRunning = true;
+    initResults();
+    reporter.start();
+    readManifest();
+    findTests();
+    if (options.watch) {
+      watch();
+    }
+  }
+
+  /**
+   * Recurse directories and watch for changes.
+   * Upon any change, re-run tests.
+   */
+  function watch() {
+    var ignoreFiles = {
+      '.cache': true,
+      '.git': true,
+      'coverage': true,
+      'node_modules': true
+    };
+    function read(dir) {
+      if (!isWatching[dir]) {
+        isWatching[dir] = true;
+
+        console.log('WATCHING', dir);
+        fs.watch(dir, function () {
+          console.log('CHANGED', arguments);
+          if (!isRunning) {
+            start();
+          }
+        });
+      }
+      fs.readdir(dir, function (err, list) {
+        if (err) {
+          handle(err);
+        }
+        else {
+          list.forEach(function (file) {
+            var path = dir + '/' + file;
+            if (file != '.' && file != '..' && !ignoreFiles[file]) {
+              fs.stat(path, function (err, stat) {
+                if (err) {
+                  handle(err);
+                }
+                else if (stat.isDirectory()) {
+                  read(path);
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+    read(options.dir);
+  }
+
+  /**
+   * Initialize (or re-initialize) the result set.
+   */
   function initResults() {
     outputs = [];
     passed = 0;
     failed = [];
     hasOnly = false;
     skipped = 0;
+    isRunning = true;
   }
 
+  /**
+   * Decrement the count of async events we're waiting for.
+   */
   function unwait() {
     if (!--waits) {
       assignTests();
     }
   }
 
+  /**
+   * Read the manifest file (if possible), and ignore errors.
+   */
   function readManifest() {
     waits++;
     fs.readFile(manifestPath, function (err, content) {
@@ -43,13 +122,18 @@ var exam = module.exports = function (options) {
     });
   }
 
+  /**
+   * Handle an error by adding it to failures rather than exiting.
+   */
   function handle(error) {
     error.trace = error.stack;
     failed.push({title: 'Exam', errors: [error]});
   }
 
+  /**
+   * Read or recurse the file path or directory that was specified (or default).
+   */
   function findTests() {
-
     function read(path) {
       waits++;
       fs.stat(path, function (err, stat) {
@@ -98,6 +182,9 @@ var exam = module.exports = function (options) {
     options.paths.forEach(read);
   }
 
+  /**
+   * If there are test files, assign them to cores for running.
+   */
   function assignTests() {
 
     if (!files.length) {
@@ -133,8 +220,10 @@ var exam = module.exports = function (options) {
     files.forEach(function (path) {
       found[path] = true;
     });
-    // Create a dictionary to confirm files are in the manifest.
+
+    // Create a dictionary of files that are in the manifest.
     var manifested = {};
+
     // The manifest is sorted by largest to smallest runtime.
     var sorted = [];
     manifest.files.forEach(function (file) {
@@ -144,6 +233,7 @@ var exam = module.exports = function (options) {
         sorted.push(path);
       }
     });
+
     // Push any new files onto the end (as if they ran instantly last time).
     files.forEach(function (path) {
       if (!manifested[path]) {
@@ -152,6 +242,9 @@ var exam = module.exports = function (options) {
     });
     files = sorted;
 
+    // Zig-zag over the list of files so that the slowest and fastest will hit
+    // the same core in the case where there are 2 passes.
+    // TODO: Assign more optimally by summing runtimes and juggling buckets.
     var reverse = true;
     files.forEach(function (path, index) {
       var mod = index % forkCount;
@@ -215,7 +308,13 @@ var exam = module.exports = function (options) {
     });
     manifest = {files: files};
     fs.mkdir(cacheDir, function (err) {
-      fs.writeFile(manifestPath, JSON.stringify(manifest, null, '  '));
+      var content = JSON.stringify(manifest, null, '  ');
+      fs.writeFile(manifestPath, content, function () {
+        // Allow a few milliseconds to ignore the file change.
+        setTimeout(function () {
+          isRunning = false;
+        }, 99);
+      });
     });
   }
 
@@ -237,7 +336,8 @@ if ((process.mainModule.filename == __filename) && !process._EXAM) {
     reporter: 'console',
     watch: false,
     singleProcess: !!process.env.running_under_istanbul,
-    paths: []
+    paths: [],
+    dir: cwd
   };
   argv.forEach(function (arg, index) {
     if (index >= start) {
@@ -248,6 +348,10 @@ if ((process.mainModule.filename == __filename) && !process._EXAM) {
       }
       else if (key == '-p' || key == '--parser') {
         options.parser = argv[index + 1];
+        argv[index + 1] = null;
+      }
+      else if (key == '-d' || key == '--dir') {
+        options.dir = argv[index + 1];
         argv[index + 1] = null;
       }
       else if (key == '-w' || key == '--watch') {
