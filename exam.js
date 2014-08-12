@@ -14,7 +14,7 @@ var exam = module.exports = function (options) {
   var time = new Date();
   var reporter = require('./lib/reporters/' + options.reporter);
   var ignoreFiles = {};
-  var outputs, passed, failed, only, skipped;
+  var outputs, passed, failed, hasOnly, skipped;
 
   initResults();
   reporter.start();
@@ -25,7 +25,7 @@ var exam = module.exports = function (options) {
     outputs = [];
     passed = 0;
     failed = [];
-    only = 0;
+    hasOnly = false;
     skipped = 0;
   }
 
@@ -170,31 +170,34 @@ var exam = module.exports = function (options) {
   }
 
   /**
-   * Receive a test result array:
-   *
-   * Result
-   *   0: Output array.
-   *   1: Number of tests that passed.
-   *   2: Array of outputs for failed tests.
-   *   3: Map of runtimes by file path.
-   *   4: Number of tests run in "only" mode.
-   *   5: Number of tests skipped.
+   * Receive test results from a forked process.
    */
   function receiveResult(result) {
-    if (result[4] && !only) {
-      clearResults();
-      only = result[4];
+    skipped += result.skipped;
+
+    // If another process put us in "only" mode, count this one as skipped.
+    if (hasOnly && !result.hasOnly) {
+      skipped += result.passed + result.failed.length;
     }
-    if (result[0]) {
-      outputs.push(result[0]);
-    }
-    passed += result[1];
-    result[2].forEach(function (failure) {
-      failed.push(failure);
-    });
-    var times = result[3];
-    for (var file in times) {
-      files.push({path: file, time: times[file]});
+    else {
+      // If entering only mode, add all previous counts to "skipped".
+      if (result.hasOnly && !hasOnly) {
+        var total = passed + failed.length + skipped;
+        initResults();
+        hasOnly = true;
+        skipped = total;
+      }
+      if (result.output) {
+        outputs.push(result.output);
+      }
+      passed += result.passed;
+      result.failed.forEach(function (failure) {
+        failed.push(failure);
+      });
+      var times = result.times;
+      for (var file in times) {
+        files.push({path: file, time: times[file]});
+      }
     }
     if (!--waits) {
       finish();
@@ -205,7 +208,7 @@ var exam = module.exports = function (options) {
    * Upon receiving results from all runners, write the report and manifest.
    */
   function finish() {
-    reporter.all(outputs, passed, failed, time, only, skipped);
+    reporter.all(outputs, passed, failed, skipped, time);
     process.emit('exam:finished');
     files.sort(function (a, b) {
       return b.time - a.time;
@@ -238,19 +241,19 @@ if ((process.mainModule.filename == __filename) && !process._EXAM) {
   };
   argv.forEach(function (arg, index) {
     if (index >= start) {
-      arg = arg.toLowerCase();
-      if (arg == '-r' || arg == '--reporter') {
+      var key = arg.toLowerCase();
+      if (key == '-r' || key == '--reporter') {
         options.reporter = argv[index + 1];
         argv[index + 1] = null;
       }
-      else if (arg == '-p' || arg == '--parser') {
+      else if (key == '-p' || key == '--parser') {
         options.parser = argv[index + 1];
         argv[index + 1] = null;
       }
-      else if (arg == '-w' || arg == '--watch') {
+      else if (key == '-w' || key == '--watch') {
         options.watch = true;
       }
-      else if (arg == '-s' || arg == '--single-process') {
+      else if (key == '-s' || key == '--single-process') {
         options.singleProcess = true;
       }
       else if (arg) {
