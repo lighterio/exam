@@ -57,10 +57,7 @@ var exam = module.exports = function (options) {
     function read(dir) {
       if (!isWatching[dir]) {
         isWatching[dir] = true;
-
-        console.log('WATCHING', dir);
         fs.watch(dir, function () {
-          console.log('CHANGED', arguments);
           if (!isRunning) {
             start();
           }
@@ -117,7 +114,12 @@ var exam = module.exports = function (options) {
   function readManifest() {
     waits++;
     fs.readFile(manifestPath, function (err, content) {
-      manifest = JSON.parse(content || '{"files":[]}');
+      try {
+        manifest = JSON.parse(content);
+      }
+      catch (e) {
+        manifest = {files: []};
+      }
       unwait();
     });
   }

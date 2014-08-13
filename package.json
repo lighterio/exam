@@ -7,10 +7,10 @@
   "version": "0.0.5",
   "main": "exam.js",
   "bin": "exam.js",
-  "homepage": "http://github.com/zerious/exam",
-  "repository": "http://github.com/zerious/exam.git",
+  "homepage": "http://github.com/lighterio/exam",
+  "repository": "http://github.com/lighterio/exam.git",
   "bugs": {
-    "url": "http://github.com/zerious/exam/issues"
+    "url": "http://github.com/lighterio/exam/issues"
   },
   "author": {
     "name": "Sam Eubank",
@@ -25,7 +25,7 @@
   "licenses": [
     {
       "type": "MIT",
-      "url": "http://github.com/zerious/exam/blob/master/MIT-LICENSE.md"
+      "url": "http://github.com/lighterio/exam/blob/master/MIT-LICENSE.md"
     }
   ],
   "engines": [
@@ -45,8 +45,6 @@
     "coveralls": "2.11.1",
     "esprima": "1.2.2",
     "istanbul": "0.3.0",
-    "zeriousify": "0.1.7",
-    "assert-plus": "0.1.5",
-    "mocha": "1.18.2"
+    "zeriousify": "0.1.9"
   }
 }
