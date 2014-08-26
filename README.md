@@ -211,27 +211,63 @@ Asserts that the value evaluates to **false**, meaning the value is either
 `false`, `0` (zero), `""` (empty string), `null`, `undefined` or `NaN`.
 
 #### is.nan(value)
-Asserts that the value evaluates to **true**, meaning the value is either
-`true`, a non-zero number, a non-empty string, a function, or a non-null object.
+Asserts that the value cannot be evaluated as a number. This includes anything
+that is not a number, a string representation of a number, `null` (which
+evaluates to zero), `false` (which evaluates to zero) or a `Date` object.
 
 #### is.notNan(value)
-Asserts that the value evaluates to **false**, meaning the value is either
-`false`, `0` (zero), `""` (empty string), `null`, `undefined` or `NaN`.
+Asserts that the value **can** be evaluated as a number. This includes
+numbers, a string representations of numbers, `null` (which
+evaluates to zero), `false` (which evaluates to zero) and `Date` objects.
 
 ### Instance Type Checks
 
-#### is.truthy(value)
-Asserts that the value evaluates to **true**, meaning the value is either
-`true`, a non-zero number, a non-empty string, a function, or a non-null object.
+#### is.instanceOf(value, expectedClass)
+Asserts that the value is an instance of the expected class.
 
-#### is.falsy(value)
-Asserts that the value evaluates to **false**, meaning the value is either
-`false`, `0` (zero), `""` (empty string), `null`, `undefined` or `NaN`.
+#### is.notInstanceOf(value, expectedClass)
+Asserts that the value is **not** an instance of the expected class.
 
-#### is.nan(value)
-Asserts that the value evaluates to **true**, meaning the value is either
-`true`, a non-zero number, a non-empty string, a function, or a non-null object.
+#### is.array(value)
+Asserts that the value is an instance of the `Array` class.
 
-#### is.notNan(value)
-Asserts that the value evaluates to **false**, meaning the value is either
-`false`, `0` (zero), `""` (empty string), `null`, `undefined` or `NaN`.
+#### is.notArray(value)
+Asserts that the value is **not** an instance of the `Array` class.
+
+#### is.date(value)
+Asserts that the value is an instance of the `Date` class.
+
+#### is.notDate(value)
+Asserts that the value is **not** an instance of the `Date` class.
+
+#### is.error(value)
+Asserts that the value is an instance of the `Error` class.
+
+#### is.notError(value)
+Asserts that the value is **not** an instance of the `Error` class.
+
+### Advanced
+
+#### is.in(needle, haystack)
+Asserts that the needle is found in the haystack. The needle can be either a
+string or a RegExp, and the haystack must be a string.
+
+#### is.notIn(needle, haystack)
+Asserts that the needle cannot be found in the haystack. The needle can be
+either a string or a RegExp, and the haystack must be a string.
+
+#### is.lengthOf(value, length)
+Asserts that the value (string, array, etc.) has the specified length.
+
+#### is.notLengthOf(value, length)
+Asserts that the value (string, array, etc.) does not have the specified length.
+
+#### is.arrayOf(value, expectedTypeOrClass)
+Asserts that the value is an array of the specified type or an array of
+instances of the specified class (depending on whether the second argument
+is a string).
+
+#### is.notArrayOf(value, expectedTypeOrClass)
+Asserts that the value is not an array, or contains an item that is not of the
+specified type or an item that is not an instance of the specified class
+(depending on whether the second argument is a string).
