@@ -217,3 +217,21 @@ Asserts that the value evaluates to **true**, meaning the value is either
 #### is.notNan(value)
 Asserts that the value evaluates to **false**, meaning the value is either
 `false`, `0` (zero), `""` (empty string), `null`, `undefined` or `NaN`.
+
+### Instance Type Checks
+
+#### is.truthy(value)
+Asserts that the value evaluates to **true**, meaning the value is either
+`true`, a non-zero number, a non-empty string, a function, or a non-null object.
+
+#### is.falsy(value)
+Asserts that the value evaluates to **false**, meaning the value is either
+`false`, `0` (zero), `""` (empty string), `null`, `undefined` or `NaN`.
+
+#### is.nan(value)
+Asserts that the value evaluates to **true**, meaning the value is either
+`true`, a non-zero number, a non-empty string, a function, or a non-null object.
+
+#### is.notNan(value)
+Asserts that the value evaluates to **false**, meaning the value is either
+`false`, `0` (zero), `""` (empty string), `null`, `undefined` or `NaN`.
