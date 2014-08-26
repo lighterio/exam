@@ -346,15 +346,15 @@ if ((process.mainModule.filename == __filename) && !process._EXAM) {
       var key = arg.toLowerCase();
       if (key == '-r' || key == '--reporter') {
         options.reporter = argv[index + 1];
-        argv[index + 1] = null;
+        argv[index + 1] = '';
       }
       else if (key == '-p' || key == '--parser') {
         options.parser = argv[index + 1];
-        argv[index + 1] = null;
+        argv[index + 1] = '';
       }
       else if (key == '-d' || key == '--dir') {
         options.dir = argv[index + 1];
-        argv[index + 1] = null;
+        argv[index + 1] = '';
       }
       else if (key == '-w' || key == '--watch') {
         options.watch = true;
