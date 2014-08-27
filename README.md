@@ -12,11 +12,6 @@ important.
 
 ## Quick Start
 
-Install `exam` globally.
-```bash
-npm i -g exam
-```
-
 Make your test directory.
 ```
 cd myapp
@@ -26,7 +21,7 @@ mkdir test
 Write some tests...
 ```javascript
 describe("Array", function () {
-  var a = [1,2,3];
+  var a = [1, 2, 3];
   describe('#indexOf()', function () {
     it("returns -1 when a value isn't found", function () {
       is(a.indexOf(5), -1);
@@ -41,6 +36,12 @@ describe("Array", function () {
   });
 });
 ```
+
+Install `exam` globally.
+```bash
+sudo npm install -g exam
+```
+
 Run tests.
 ```bash
 exam
@@ -60,35 +61,213 @@ Exam exposes global functions which you can use in your tests.
 
 ## Assertions
 
-You can use exam's `is` assertion library, or any other assertion library you want.
+You can use exam's builtin `is` assertion library, or any other assertion
+library that throws an AssertionError.
 
 ## is
-The `is` object contains chainable assertion methods. For example:
 
+You can also use `is` methods to make assertions:
+```javascript
+var a = [1, 2, 3];
+is.array(a);
+is.same(a, [1,2,3]);
+is.number(a[0]);
+is.is(a[0], 1);
 ```
+
+Each `is` method also returns `is` so you can chain, if that's your thing:
+```javascript
 var a = [1, 2, 3];
 is
   .array(a)
   .same(a, [1,2,3])
   .number(a[0])
-  .is(a[0], true)
-  .tis(a[0], 1)
-  .greater(a[2], a[1])
-  .false(a[0] == a[1])
-  .truey(a[0])
-  .truey(a)
-
+  .is(a[0], 1)
 ```
 
-* `is(actual, expected)` or `is.is(actual, expected)` asserts `actual == expected`.
-* `is.not(actual, expected)` asserts `actual != expected`.
-* `is.tis(actual, expected)` asserts `actual === expected`.
-* `is.tisNot(actual, expected)` asserts `actual !== expected`.
-* `is.same(actual, expected)` asserts `stringify(actual) == stringify(expected)`.
-* `is.notSame(actual, expected)` asserts `stringify(actual) != stringify(expected)`.
-* `is.truey(value)` asserts `!!value`.
-* `is.falsey(value)` asserts `!value`.
+### Comparisons
 
+#### is.is(actual, expected)
+The `is.is` function is also known simply as `is`, allowing a shorthand strict
+equality assertion.
+```javascript
+var one = 1;
+is(one, 1);   // No error.
+is(one, '1'); // Throws an AssertionError.
 ```
 
-<!--children|waits|timeout|slowTime|slowerTime|report-->
+It asserts that `actual` is equal to `expected`, and that they are of the same
+type.
+
+#### is.not(actual, expected)
+Asserts that `actual` is not equal to `expected` (or that they are not of the
+same type).
+
+#### is.equal(actual, expected)
+Asserts that `actual` is equal to `expected`, within JavaScript's dynamic type
+system.
+
+#### is.notEqual(actual, expected)
+Asserts that `actual` is **not** equal to `expected`, within JavaScript's
+dynamic type system.
+
+#### is.same(actual, expected) *or* is.deepEqual(actual, expected)
+Asserts that `actual` is "the same" as `expected`, meaning that their
+stringified representations are equal.
+
+#### is.notSame(actual, expected) *or* is.notDeepEqual(actual, expected)
+Asserts that `actual` is **not** "the same" as `expected`, meaning that their
+stringified representations are unequal.
+
+#### is.greater(first, second)
+Asserts that the `first` value is greater than the `second`.
+
+#### is.less(first, second)
+Asserts that the `first` value is less than the `second`.
+
+#### is.greaterOrEqual(first, second)
+Asserts that the `first` value is greater than or equal to the `second`.
+
+#### is.lessOrEqual(first, second)
+Asserts that the `first` value is less than or equal to the `second`.
+
+### Strict Type Checks
+
+#### is.type(value, expectedType)
+Asserts that the value is of the expected type, expressed as a case-sensitive
+string returned by `typeof`.
+
+```javascript
+var num = 1;
+var one = '1'
+is.type(num, 'number'); // No error.
+is.type(one, 'number'); // Throws an AssertionError.
+is.type(num, 'Number'); // Throws an AssertionError.
+is.type(one, 'string'); // No error.
+```
+
+#### is.notType(value, expectedType)
+Asserts that the value is **not** of the expected type, expressed as a
+case-sensitive string returned by `typeof`.
+
+#### is.null(value)
+Asserts that the value is null. This is a strictly-typed assertion.
+
+#### is.notNull(value)
+Asserts that the value is **not** null. This is a strictly-typed assertion.
+
+#### is.undefined(value)
+Asserts that the value is undefined. This is a strictly-typed assertion.
+
+#### is.notUndefined(value) *or* is.defined(value)
+Asserts that the value is **not** undefined. This is a strictly-typed
+assertion.
+
+#### is.boolean(value)
+Asserts that the value is a boolean. This is a strictly-typed assertion, so
+truthy or falsy values which are not actually `true` or `false` will fail this
+assertion.
+
+#### is.notBoolean(value)
+Asserts that the value is **not** a boolean. This is a strictly-typed, so
+`true` and `false` are the only values that will fail this assertion.
+
+#### is.number(value)
+Asserts that the value is a number value. This is a strictly-typed assertion,
+so strings with numeric values will fail this assertion.
+
+#### is.notNumber(value)
+Asserts that the value is a number value. This is a strictly-typed assertion,
+so numeric values are the only values that will fail this assertion.
+
+#### is.string(value)
+Asserts that the value is a string. This is a strictly-typed assertion.
+
+#### is.notString(value)
+Asserts that the value is **not** a string. This is a strictly-typed assertion.
+
+#### is.function(value)
+Asserts that the value is a function. This is a strictly-typed assertion.
+
+#### is.notFunction(value)
+Asserts that the value is **not** a function. This is a strictly-typed
+assertion.
+
+#### is.object(value)
+Asserts that the value is an object. This is a strictly-typed assertion.
+
+#### is.notObject(value)
+Asserts that the value is **not** an object. This is a strictly-typed
+assertion.
+
+### Dynamic Type Checks
+
+#### is.truthy(value)
+Asserts that the value evaluates to **true**, meaning the value is either
+`true`, a non-zero number, a non-empty string, a function, or a non-null object.
+
+#### is.falsy(value)
+Asserts that the value evaluates to **false**, meaning the value is either
+`false`, `0` (zero), `""` (empty string), `null`, `undefined` or `NaN`.
+
+#### is.nan(value)
+Asserts that the value cannot be evaluated as a number. This includes anything
+that is not a number, a string representation of a number, `null` (which
+evaluates to zero), `false` (which evaluates to zero) or a `Date` object.
+
+#### is.notNan(value)
+Asserts that the value **can** be evaluated as a number. This includes
+numbers, a string representations of numbers, `null` (which
+evaluates to zero), `false` (which evaluates to zero) and `Date` objects.
+
+### Instance Type Checks
+
+#### is.instanceOf(value, expectedClass)
+Asserts that the value is an instance of the expected class.
+
+#### is.notInstanceOf(value, expectedClass)
+Asserts that the value is **not** an instance of the expected class.
+
+#### is.array(value)
+Asserts that the value is an instance of the `Array` class.
+
+#### is.notArray(value)
+Asserts that the value is **not** an instance of the `Array` class.
+
+#### is.date(value)
+Asserts that the value is an instance of the `Date` class.
+
+#### is.notDate(value)
+Asserts that the value is **not** an instance of the `Date` class.
+
+#### is.error(value)
+Asserts that the value is an instance of the `Error` class.
+
+#### is.notError(value)
+Asserts that the value is **not** an instance of the `Error` class.
+
+### Advanced
+
+#### is.in(needle, haystack)
+Asserts that the needle is found in the haystack. The needle can be either a
+string or a RegExp, and the haystack must be a string.
+
+#### is.notIn(needle, haystack)
+Asserts that the needle cannot be found in the haystack. The needle can be
+either a string or a RegExp, and the haystack must be a string.
+
+#### is.lengthOf(value, length)
+Asserts that the value (string, array, etc.) has the specified length.
+
+#### is.notLengthOf(value, length)
+Asserts that the value (string, array, etc.) does not have the specified length.
+
+#### is.arrayOf(value, expectedTypeOrClass)
+Asserts that the value is an array of the specified type or an array of
+instances of the specified class (depending on whether the second argument
+is a string).
+
+#### is.notArrayOf(value, expectedTypeOrClass)
+Asserts that the value is not an array, or contains an item that is not of the
+specified type or an item that is not an instance of the specified class
+(depending on whether the second argument is a string).
