@@ -200,7 +200,19 @@ Asserts that the value is an object. This is a strictly-typed assertion.
 Asserts that the value is **not** an object. This is a strictly-typed
 assertion.
 
-### Dynamic Type Checks
+### Value Checks
+
+#### is.true(value)
+Asserts that the value is the boolean value `true`.
+
+#### is.notTrue(value)
+Asserts that the value is **not** the boolean value `true`.
+
+#### is.false(value)
+Asserts that the value is the boolean value `false`.
+
+#### is.notFalse(value)
+Asserts that the value is **not** the boolean value `false`.
 
 #### is.truthy(value)
 Asserts that the value evaluates to **true**, meaning the value is either
@@ -220,7 +232,7 @@ Asserts that the value **can** be evaluated as a number. This includes
 numbers, a string representations of numbers, `null` (which
 evaluates to zero), `false` (which evaluates to zero) and `Date` objects.
 
-### Instance Type Checks
+### Instance Checks
 
 #### is.instanceOf(value, expectedClass)
 Asserts that the value is an instance of the expected class.
@@ -246,15 +258,21 @@ Asserts that the value is an instance of the `Error` class.
 #### is.notError(value)
 Asserts that the value is **not** an instance of the `Error` class.
 
+#### is.regExp(value)
+Asserts that the value is an instance of the `RegExp` class.
+
+#### is.notRegExp(value)
+Asserts that the value is **not** an instance of the `RegExp` class.
+
 ### Advanced
 
-#### is.in(needle, haystack)
-Asserts that the needle is found in the haystack. The needle can be either a
-string or a RegExp, and the haystack must be a string.
+#### is.in(value, search)
+Asserts that `value` is a string and that it contains a substring `search`
+or matches a regular expression `search`.
 
-#### is.notIn(needle, haystack)
-Asserts that the needle cannot be found in the haystack. The needle can be
-either a string or a RegExp, and the haystack must be a string.
+#### is.notIn(value, search)
+Asserts that either 1) `value` is not a string, 2) `search` is not
+a string or regular expression, or 3) `search` is not found in `value`.
 
 #### is.lengthOf(value, length)
 Asserts that the value (string, array, etc.) has the specified length.
@@ -271,3 +289,49 @@ is a string).
 Asserts that the value is not an array, or contains an item that is not of the
 specified type or an item that is not an instance of the specified class
 (depending on whether the second argument is a string).
+
+## Running exam
+
+Exam can be run using the command line interface, or by requiring the module.
+
+### Command line
+
+To install the CLI, install exam globally (using sudo if your environment
+requires root access to install a Node binary):
+
+```bash
+npm install -g exam
+```
+
+Then to run the command line, use a command such as this to run all tests
+under inside the `test` folder of the current working directory and re-run
+upon changes to files:
+```
+exam --watch test
+```
+
+The last argument is optional (and multiple paths are allowed). If omitted,
+the path is assumed to be `test`.
+
+### Module
+
+You can also run `exam` from within your Node application. The module exposes
+itself as a function that accepts an `options` object containing the arguments
+you would pass to the CLI:
+
+```javascript
+var exam = require('exam');
+exam({
+  paths: ['test'],
+  watch: true
+});
+```
+
+### Options
+
+| CLI argument   | Object property | Default   | Description                  |
+|----------------|-----------------|-----------|------------------------------|
+| -R, --reporter | reporter        | "console" | Which library will be used to output results - "console", "tap" or "xunit". |
+| -p, --parser   | parser          | "acorn"   | Which EcmaScript parser will be used to handle syntax errors - "acorn" or "esprima". |                             |
+| -w, --watch    | watch           | false     | Whether to keep the process running, watch for file changes, and re-run tests when a change is detected. |
+| -c, --cluster  | cluster         | true      | Whether to spawn child processes, creating a cluster of test runners. |
