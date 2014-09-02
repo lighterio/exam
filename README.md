@@ -290,6 +290,151 @@ Asserts that the value is not an array, or contains an item that is not of the
 specified type or an item that is not an instance of the specified class
 (depending on whether the second argument is a string).
 
+## Mocking
+
+You can use exam's builtin `mock` library, or any other mocking library
+you like. The `mock` library exposes 2 globals, `mock` and `unmock`:
+
+```javascript
+describe('myConsole', function () {
+  it('calls console.log', function (done) {
+    mock(console, {
+      log: function () {
+        unmock(console);
+        done();
+      }
+    });
+  });
+});
+```
+
+### mock(object, mockedProperties)
+
+When mock is used as a function, it accepts 2 objects. Any properties of the
+second object will be copied onto the first object, and if those properties
+were already defined on the first, they will be saved so they can be unmocked
+later.
+
+In addition, `mock` is an object with several methods for replacing methods
+with simple functions that create testable output.
+
+#### mock.ignore()
+
+Returns a function that does nothing.
+
+```javascript
+describe('myConsole', function () {
+  it('.log does not throw an error', function () {
+    mock(console, {
+      log: mock.ignore()
+    });
+    // This logs nothing, despite calling console.log('a').
+    myConsole.log('a');
+  });
+});
+```
+
+#### mock.count()
+
+Returns a function that increments its `value` property each time it is called.
+
+```javascript
+describe('myConsole', function () {
+  it('.log calls console.log once', function () {
+    mock(console, {
+      log: mock.count()
+    });
+    is(console.log.value, 0);
+    myConsole.log('a');
+    is(console.log.value, 1);
+    unmock(console);
+  });
+});
+```
+
+#### mock.concat([delimiter])
+
+Returns a function whose first argument is concatenated onto its `value`
+property each time it is called.
+
+```javascript
+describe('myConsole', function () {
+  it('.log calls console.log', function () {
+    mock(console, {
+      log: mock.concat()
+    });
+    is(console.log.value, '');
+    myConsole.log('a');
+    is(console.log.value, 'a');
+    myConsole.log('b');
+    is(console.log.value, 'ab');
+    unmock(console);
+  });
+});
+```
+
+If a delimiter is supplied, it will be used to separate the concatenated
+arguments.
+
+```javascript
+describe('myConsole', function () {
+  it('.log calls console.log', function () {
+    mock(console, {
+      log: mock.concat(',')
+    });
+    is(console.log.value, '');
+    myConsole.log(1);
+    is(console.log.value, '1');
+    myConsole.log(2);
+    is(console.log.value, '1,2');
+    unmock(console);
+  });
+});
+```
+
+#### mock.args([index])
+
+Returns a function that pushes its arguments into an array each time it is
+called.
+
+```javascript
+describe('myConsole', function () {
+  it('.log calls console.log with multiple arguments', function () {
+    mock(console, {
+      log: mock.args()
+    });
+    is.same(console.log.value, []);
+    myConsole.log('a');
+    is.same(console.log.value, [{0: 'a'}]);
+    myConsole.log('b', 'c');
+    is.same(console.log.value, [{0: 'a'}, {0: 'b', 1: 'c'}]);
+    unmock(console);
+  });
+});
+```
+
+If an index is supplied, it only pushes one of the arguments.
+
+```javascript
+describe('myConsole', function () {
+  it('.log calls console.log', function () {
+    mock(console, {
+      log: mock.args(0)
+    });
+    is.same(console.log.value, []);
+    myConsole.log(1);
+    is.same(console.log.value, [1]);
+    myConsole.log(2, 3);
+    is.same(console.log.value, [1, 2]);
+    unmock(console);
+  });
+});
+```
+
+### unmock(object)
+
+Restores the properties which belonged to the object prior to being mocked.
+
 ## Running exam
 
 Exam can be run using the command line interface, or by requiring the module.
