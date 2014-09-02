@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 var cwd = process.cwd();
 
 // Exam exposes a function that runs a test suite.
@@ -20,8 +19,14 @@ var exam = module.exports = function (options) {
   // Prevent triggering a re-run when we're already running.
   var isRunning = false;
 
+  // If forced to quit, ensure the prompt is on a new line.
+  process.on('SIGINT', function () {
+    console.log('\n');
+    process.kill();
+  });
+
   // Save test results that are reported by each worker.
-  var outputs, passed, failed, hasOnly, skipped;
+  var outputs, passed, failed, hasOnly, skipped, stubbed;
 
   start();
 
@@ -96,6 +101,7 @@ var exam = module.exports = function (options) {
     failed = [];
     hasOnly = false;
     skipped = 0;
+    stubbed = 0;
     isRunning = true;
   }
 
@@ -197,11 +203,10 @@ var exam = module.exports = function (options) {
     var fork = require('child_process').fork;
     var cpus = require('os').cpus();
 
-    // If exam is being run by istanbul, forking would prevent increments.
-    if (options.singleProcess) {
-      manifest.files.pop();
-      process.send = receiveResult;
+    // In 1 process mode, fake a fork.
+    if (options.oneProcess) {
       cpus = [1];
+      process.send = receiveResult;
       fork = function (path, args) {
         process.argv.push(args[0]);
         require(path);
@@ -268,34 +273,37 @@ var exam = module.exports = function (options) {
    * Receive test results from a forked process.
    */
   function receiveResult(result) {
-    skipped += result.skipped;
+    if (result.id == options.id) {
+      skipped += result.skipped;
 
-    // If another process put us in "only" mode, count this one as skipped.
-    if (hasOnly && !result.hasOnly) {
-      skipped += result.passed + result.failed.length;
-    }
-    else {
-      // If entering only mode, add all previous counts to "skipped".
-      if (result.hasOnly && !hasOnly) {
-        var total = passed + failed.length + skipped;
-        initResults();
-        hasOnly = true;
-        skipped = total;
+      // If another process put us in "only" mode, count this one as skipped.
+      if (hasOnly && !result.hasOnly) {
+        skipped += result.passed + result.failed.length;
       }
-      if (result.output) {
-        outputs.push(result.output);
+      else {
+        // If entering only mode, add all previous counts to "skipped".
+        if (result.hasOnly && !hasOnly) {
+          var total = passed + failed.length + skipped;
+          initResults();
+          hasOnly = true;
+          skipped = total;
+        }
+        if (result.output) {
+          outputs.push(result.output);
+        }
+        passed += result.passed;
+        stubbed += result.stubbed;
+        result.failed.forEach(function (failure) {
+          failed.push(failure);
+        });
+        var times = result.times;
+        for (var file in times) {
+          files.push({path: file, time: times[file]});
+        }
       }
-      passed += result.passed;
-      result.failed.forEach(function (failure) {
-        failed.push(failure);
-      });
-      var times = result.times;
-      for (var file in times) {
-        files.push({path: file, time: times[file]});
+      if (!--waits) {
+        finish();
       }
-    }
-    if (!--waits) {
-      finish();
     }
   }
 
@@ -303,8 +311,8 @@ var exam = module.exports = function (options) {
    * Upon receiving results from all runners, write the report and manifest.
    */
   function finish() {
-    reporter.all(outputs, passed, failed, skipped, time);
-    process.emit('exam:finished');
+    reporter.all(outputs, passed, failed, skipped, stubbed, time);
+    process.emit('exam:finished:' + options.id);
     files.sort(function (a, b) {
       return b.time - a.time;
     });
@@ -330,21 +338,22 @@ Object.defineProperty(exam, 'version', {
 });
 
 // If node loaded this file directly, run the tests.
-if ((process.mainModule.filename == __filename) && !process._EXAM) {
+if ((process.mainModule.filename == __filename) && !exam.options) {
   var argv = process.argv;
   var start = 2;
   var options = {
     parser: 'acorn',
     reporter: 'console',
     watch: false,
-    singleProcess: !!process.env.running_under_istanbul,
+    oneProcess: !!process.env.running_under_istanbul,
     paths: [],
-    dir: cwd
+    dir: cwd,
+    id: process._EXAM_ID || 'EXAM'
   };
   argv.forEach(function (arg, index) {
     if (index >= start) {
       var key = arg.toLowerCase();
-      if (key == '-r' || key == '--reporter') {
+      if (key == '-R' || key == '--reporter') {
         options.reporter = argv[index + 1];
         argv[index + 1] = '';
       }
@@ -352,15 +361,11 @@ if ((process.mainModule.filename == __filename) && !process._EXAM) {
         options.parser = argv[index + 1];
         argv[index + 1] = '';
       }
-      else if (key == '-d' || key == '--dir') {
-        options.dir = argv[index + 1];
-        argv[index + 1] = '';
-      }
       else if (key == '-w' || key == '--watch') {
         options.watch = true;
       }
-      else if (key == '-s' || key == '--single-process') {
-        options.singleProcess = true;
+      else if (key == '-o' || key == '--one-process') {
+        options.oneProcess = true;
       }
       else if (arg) {
         options.paths.push(arg);
@@ -368,11 +373,6 @@ if ((process.mainModule.filename == __filename) && !process._EXAM) {
     }
   });
   options.paths[0] = options.paths[0] || 'test';
-
-  Object.defineProperty(process, '_EXAM', {
-    enumerable: false,
-    value: exam
-  });
-  process._EXAM = exam;
+  exam.options = options;
   exam(options);
 }
