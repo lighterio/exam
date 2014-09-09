@@ -1,10 +1,10 @@
 # Exam
 
-[![NPM Version](https://badge.fury.io/js/exam.png)](http://badge.fury.io/js/exam)
-[![Build Status](https://travis-ci.org/lighterio/exam.png?branch=master)](https://travis-ci.org/lighterio/exam)
-[![Code Coverage](https://coveralls.io/repos/lighterio/exam/badge.png?branch=master)](https://coveralls.io/r/lighterio/exam)
-[![Dependencies](https://david-dm.org/lighterio/exam.png?theme=shields.io)](https://david-dm.org/lighterio/exam)
-[![Support](http://img.shields.io/gittip/zerious.png)](https://www.gittip.com/lighterio/)
+[![NPM Version](https://img.shields.io/npm/v/exam.svg) ![Downloads](https://img.shields.io/npm/dm/exam.svg)](https://npmjs.org/package/exam)
+[![Build Status](https://img.shields.io/travis/lighterio/exam.svg)](https://travis-ci.org/lighterio/exam)
+[![Code Coverage](https://img.shields.io/coveralls/lighterio/exam/master.svg)](https://coveralls.io/r/lighterio/exam)
+[![Dependencies](https://img.shields.io/david/lighterio/exam.svg)](https://david-dm.org/lighterio/exam)
+[![Support](https://img.shields.io/gratipay/Lighter.io.svg)](https://gratipay.com/Lighter.io/)
 
 Exam is a Node.js test runner with a default assertion library included. It
 forks processes to distribute the test load across cores, because your time is
