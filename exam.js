@@ -352,7 +352,7 @@ if ((process.mainModule.filename == __filename) && !exam.options) {
   };
   argv.forEach(function (arg, index) {
     if (index >= start) {
-      var key = arg.toLowerCase();
+      var key = arg;
       if (key == '-R' || key == '--reporter') {
         options.reporter = argv[index + 1];
         argv[index + 1] = '';
