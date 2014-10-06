@@ -1,50 +1,42 @@
 {
   "name": "exam",
+  "version": "0.0.8",
   "description": "Clustered JavaScript test runner with builtin assertions",
-  "keywords": [
-    "exam"
-  ],
-  "version": "0.0.7",
-  "main": "exam.js",
-  "bin": "exam.js",
-  "homepage": "http://github.com/lighterio/exam",
-  "repository": "http://github.com/lighterio/exam.git",
-  "bugs": {
-    "url": "http://github.com/lighterio/exam/issues"
-  },
-  "author": {
-    "name": "Sam Eubank",
-    "email": "sameubank@gmail.com"
-  },
-  "contributors": [
-    {
-      "name": "Sam Eubank",
-      "email": "sameubank@gmail.com"
-    }
-  ],
-  "licenses": [
-    {
-      "type": "MIT",
-      "url": "http://github.com/lighterio/exam/blob/master/MIT-LICENSE.md"
-    }
-  ],
-  "engines": [
-    "node >= 0.2.6"
-  ],
-  "scripts": {
-    "test": "./exam.js",
-    "retest": "./exam.js --watch",
-    "cover": "istanbul cover ./exam.js",
-    "report": "open coverage/lcov-report/index.html",
-    "coveralls": "istanbul cover ./exam.js --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
-  },
   "dependencies": {
-    "acorn": "0.6.0"
+    "acorn": "0.6.0",
+    "mock-fs": "^2.3.1"
   },
   "devDependencies": {
     "coveralls": "2.11.1",
     "esprima": "1.2.2",
     "istanbul": "0.3.0",
-    "zeriousify": "0.1.9"
-  }
+    "zeriousify": "^0.1.10"
+  },
+  "keywords": [
+    "exam",
+    "test",
+    "runner",
+    "assertion",
+    "mock",
+    "library"
+  ],
+  "main": "exam.js",
+  "bin": "exam.js",
+  "engines": {
+    "node": ">=0.2.6"
+  },
+  "scripts": {
+    "test": "./exam.js",
+    "cover": "./node_modules/istanbul/lib/cli.js cover ./exam.js",
+    "report": "open coverage/lcov-report/index.html",
+    "coveralls": "./node_modules/istanbul/lib/cli.js cover ./exam.js --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
+  },
+  "repository": "https://github.com/lighterio/exam.git",
+  "bugs": "https://github.com/lighterio/exam/issues",
+  "homepage": "http://github.com/lighterio/exam",
+  "author": "Sam Eubank <sameubank@gmail.com>",
+  "contributors": [
+    "Sam Eubank <sameubank@gmail.com>"
+  ],
+  "license": "MIT"
 }
