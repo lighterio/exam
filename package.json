@@ -1,9 +1,10 @@
 {
   "name": "exam",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Clustered JavaScript test runner with builtin assertions",
   "dependencies": {
-    "acorn": "0.6.0"
+    "acorn": "0.6.0",
+    "mock-fs": "^2.3.1"
   },
   "devDependencies": {
     "coveralls": "2.11.1",
@@ -12,7 +13,12 @@
     "zeriousify": "^0.1.10"
   },
   "keywords": [
-    "exam"
+    "exam",
+    "test",
+    "runner",
+    "assertion",
+    "mock",
+    "library"
   ],
   "main": "exam.js",
   "bin": "exam.js",
@@ -21,20 +27,16 @@
   },
   "scripts": {
     "test": "./exam.js",
-    "cover": "istanbul cover ./exam.js",
+    "cover": "./node_modules/istanbul/lib/cli.js cover ./exam.js",
     "report": "open coverage/lcov-report/index.html",
-    "coveralls": "istanbul cover ./exam.js --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
+    "coveralls": "./node_modules/istanbul/lib/cli.js cover ./exam.js --report lcovonly -- -R spec && cat ./coverage/lcov.info | coveralls && rm -rf ./coverage"
   },
   "repository": "https://github.com/lighterio/exam.git",
   "bugs": "https://github.com/lighterio/exam/issues",
   "homepage": "http://github.com/lighterio/exam",
   "author": "Sam Eubank <sameubank@gmail.com>",
   "contributors": [
-    {
-      "0": "Sam Eubank <sameubank@gmail.com>",
-      "name": "Sam Eubank",
-      "email": "sameubank@gmail.com"
-    }
+    "Sam Eubank <sameubank@gmail.com>"
   ],
   "license": "MIT"
 }

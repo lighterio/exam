@@ -1,5 +1,3 @@
-var fs = require('fs');
-
 function invoke(id, args, done) {
   var examPath = require.resolve('../exam');
   var runPath = require.resolve('../lib/run');

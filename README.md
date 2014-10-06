@@ -1,63 +1,77 @@
-# Exam
-
-[![NPM Version](https://img.shields.io/npm/v/exam.svg) ![Downloads](https://img.shields.io/npm/dm/exam.svg)](https://npmjs.org/package/exam)
+# <a href="http://lighter.io/exam" style="font-size:40px;text-decoration:none;color:#000"><img src="https://cdn.rawgit.com/lighterio/lighter.io/master/public/exam.svg" style="width:90px;height:90px"> Exam</a>
+[![NPM Version](https://img.shields.io/npm/v/exam.svg)](https://npmjs.org/package/exam)
+[![Downloads](https://img.shields.io/npm/dm/exam.svg)](https://npmjs.org/package/exam)
 [![Build Status](https://img.shields.io/travis/lighterio/exam.svg)](https://travis-ci.org/lighterio/exam)
 [![Code Coverage](https://img.shields.io/coveralls/lighterio/exam/master.svg)](https://coveralls.io/r/lighterio/exam)
 [![Dependencies](https://img.shields.io/david/lighterio/exam.svg)](https://david-dm.org/lighterio/exam)
 [![Support](https://img.shields.io/gratipay/Lighter.io.svg)](https://gratipay.com/Lighter.io/)
 
-Exam is a Node.js test runner with a default assertion library included. It
-forks processes to distribute the test load across cores, because your time is
-important.
 
-## Quick Start
+## TL;DR
 
-Make your test directory.
+Exam is a JavaScript test runner that can distribute your tests across CPUs
+because your time is important. It comes with a terse assertion library and
+mocking library, but you can bring your own if you like.
+
+### Getting started
+
+Make your test directory:
 ```
 cd myapp
 mkdir test
 ```
 
-Write some tests...
-```javascript
-describe("Array", function () {
-  var a = [1, 2, 3];
-  describe('#indexOf()', function () {
-    it("returns -1 when a value isn't found", function () {
-      is(a.indexOf(5), -1);
-      is(a.indexOf(0), -1);
-      is(a.indexOf(-1), -1);
-    });
-    it("returns an index when a value is", function () {
-      is(a.indexOf(1), 0);
-      is(a.indexOf(2), 1);
-      is(a.indexOf(3), 1);
-    });
+Write some tests in `myapp/test`:
+```js
+var a = [1, 2, 3];
+describe('Array.indexOf()', function () {
+  it("returns -1 when a value isn't found", function () {
+    is(a.indexOf(0), -1);
+    is(a.indexOf(-1), -1);
+  });
+  it("returns an index when a value is found", function () {
+    is(a.indexOf(1), 0);
+    is(a.indexOf(2), 1);
   });
 });
 ```
 
-Install `exam` globally.
+Install `exam`:
 ```bash
 sudo npm install -g exam
 ```
 
-Run tests.
+Run tests:
 ```bash
 exam
 ```
 
-## Test structure
+
+## Test Functions
 
 Exam exposes global functions which you can use in your tests.
 
-* `describe(title, fn)` runs `fn` as a suite of tests.
-* `it(does, fn)` runs `fn` to test what something does.
-* `is(actual, expected)` asserts equality.
-* `before(fn)` runs `fn` before a suite.
-* `beforeEach(fn)` runs `fn` before each test in a suite.
-* `after(fn)` runs `fn` after a suite.
-* `afterEach(fn)` runs `fn` after each test in a suite.
+### describe(title, fn)
+Runs `fn` as a suite of tests.
+
+### it(does, fn)
+Runs `fn` to test what something does.
+
+### is(actual, expected)
+Asserts equality.
+
+### before(fn)
+Runs `fn`** before a suite.<br>
+
+### beforeEach(fn)
+Runs `fn` before each test in a suite.<br>
+
+### after(fn)
+Runs `fn` after a suite.<br>
+
+### afterEach(fn)
+Runs `fn` after each test in a suite.<br>
+
 
 ## Assertions
 
@@ -67,7 +81,7 @@ library that throws an AssertionError.
 ## is
 
 You can also use `is` methods to make assertions:
-```javascript
+```js
 var a = [1, 2, 3];
 is.array(a);
 is.same(a, [1,2,3]);
@@ -76,7 +90,7 @@ is.is(a[0], 1);
 ```
 
 Each `is` method also returns `is` so you can chain, if that's your thing:
-```javascript
+```js
 var a = [1, 2, 3];
 is
   .array(a)
@@ -87,10 +101,10 @@ is
 
 ### Comparisons
 
-#### is.is(actual, expected)
+#### is(actual, expected)
 The `is.is` function is also known simply as `is`, allowing a shorthand strict
 equality assertion.
-```javascript
+```js
 var one = 1;
 is(one, 1);   // No error.
 is(one, '1'); // Throws an AssertionError.
@@ -137,7 +151,7 @@ Asserts that the `first` value is less than or equal to the `second`.
 Asserts that the value is of the expected type, expressed as a case-sensitive
 string returned by `typeof`.
 
-```javascript
+```js
 var num = 1;
 var one = '1'
 is.type(num, 'number'); // No error.
@@ -290,12 +304,13 @@ Asserts that the value is not an array, or contains an item that is not of the
 specified type or an item that is not an instance of the specified class
 (depending on whether the second argument is a string).
 
+
 ## Mocking
 
 You can use exam's builtin `mock` library, or any other mocking library
 you like. The `mock` library exposes 2 globals, `mock` and `unmock`:
 
-```javascript
+```js
 describe('myConsole', function () {
   it('calls console.log', function (done) {
     mock(console, {
@@ -318,11 +333,11 @@ later.
 In addition, `mock` is an object with several methods for replacing methods
 with simple functions that create testable output.
 
-#### mock.ignore()
+### mock.ignore()
 
 Returns a function that does nothing.
 
-```javascript
+```js
 describe('myConsole', function () {
   it('.log does not throw an error', function () {
     mock(console, {
@@ -334,11 +349,11 @@ describe('myConsole', function () {
 });
 ```
 
-#### mock.count()
+### mock.count()
 
 Returns a function that increments its `value` property each time it is called.
 
-```javascript
+```js
 describe('myConsole', function () {
   it('.log calls console.log once', function () {
     mock(console, {
@@ -352,12 +367,12 @@ describe('myConsole', function () {
 });
 ```
 
-#### mock.concat([delimiter])
+### mock.concat([delimiter])
 
 Returns a function whose first argument is concatenated onto its `value`
 property each time it is called.
 
-```javascript
+```js
 describe('myConsole', function () {
   it('.log calls console.log', function () {
     mock(console, {
@@ -376,7 +391,7 @@ describe('myConsole', function () {
 If a delimiter is supplied, it will be used to separate the concatenated
 arguments.
 
-```javascript
+```js
 describe('myConsole', function () {
   it('.log calls console.log', function () {
     mock(console, {
@@ -392,12 +407,12 @@ describe('myConsole', function () {
 });
 ```
 
-#### mock.args([index])
+### mock.args([index])
 
 Returns a function that pushes its arguments into an array each time it is
 called.
 
-```javascript
+```js
 describe('myConsole', function () {
   it('.log calls console.log with multiple arguments', function () {
     mock(console, {
@@ -415,7 +430,7 @@ describe('myConsole', function () {
 
 If an index is supplied, it only pushes one of the arguments.
 
-```javascript
+```js
 describe('myConsole', function () {
   it('.log calls console.log', function () {
     mock(console, {
@@ -428,6 +443,154 @@ describe('myConsole', function () {
     is.same(console.log.value, [1, 2]);
     unmock(console);
   });
+});
+```
+
+### mock.fs([config][, createNewFs])
+
+Uses [`mock-fs`](https://www.npmjs.org/package/mock-fs) to create a temporary
+in-memory file system for fast, reliable tests. If `createNewFs` is truthy,
+Node's built-in [`fs` module](http://nodejs.org/api/fs.html) remains unchanged,
+otherwise its methods are mocked.
+
+```js
+// Replace Node's `fs` with a temporary file system.
+var fs = mock.fs({
+  'path/to/fake/dir': {
+    'some-file.txt': 'file content here',
+    'empty-dir': {} // Empty directory.
+  },
+  'path/to/some.png': new Buffer([8, 6, 7, 5, 3, 0, 9])
+});
+
+// Verify that we can read content.
+var content = fs.readFileSync('path/to/fake/dir/some-file.txt');
+is(content.toString(), 'file content here');
+
+// Restore Node's built-in file system.
+unmock(fs);
+```
+
+Calling `mock.fs` sets up a mock file system and returns a reference to Node's
+built-in `fs` module, whose methods are now mocked. The resulting file system
+has two base directories, `process.cwd()` and `os.tmpdir()`, plus any
+directories/files added by the optional `config` object.
+
+A `config` object is a nested structure in which:
+* Keys are paths, relative to `process.cwd()`.
+* `Buffer` and `string` values are file contents.
+* Plain `object` values are directories.
+
+To create a file or directory with additional properties (owner, permissions,
+atime, etc.), use `mock.file()` or `mock.directory()`.
+
+**Caveats:**
+
+* Paths should use forward slashes, even on Windows.
+
+* When you use `mock.fs` without the `createNewFs` argument, Node's own `fs`
+  module is modified. If you use it **before** any other modules that modify
+  `fs` (e.g. `graceful-fs`), the mock should behave as expected.
+
+* The following [`fs` functions](http://nodejs.org/api/fs.html) are overridden:
+  `fs.ReadStream`, `fs.Stats`, `fs.WriteStream`, `fs.appendFile`,
+  `fs.appendFileSync`, `fs.chmod`, `fs.chmodSync`, `fs.chown`, `fs.chownSync`,
+  `fs.close`, `fs.closeSync`, `fs.createReadStream`, `fs.createWriteStream`,
+  `fs.exists`, `fs.existsSync`, `fs.fchmod`, `fs.fchmodSync`, `fs.fchown`,
+  `fs.fchownSync`, `fs.fdatasync`, `fs.fdatasyncSync`, `fs.fstat`,
+  `fs.fstatSync`, `fs.fsync`, `fs.fsyncSync`, `fs.ftruncate`,
+  `fs.ftruncateSync`, `fs.futimes`, `fs.futimesSync`, `fs.lchmod`,
+  `fs.lchmodSync`, `fs.lchown`, `fs.lchownSync`, `fs.link`, `fs.linkSync`,
+  `fs.lstatSync`, `fs.lstat`, `fs.mkdir`, `fs.mkdirSync`, `fs.open`,
+  `fs.openSync`, `fs.read`, `fs.readSync`, `fs.readFile`, `fs.readFileSync`,
+  `fs.readdir`, `fs.readdirSync`, `fs.readlink`, `fs.readlinkSync`,
+  `fs.realpath`, `fs.realpathSync`, `fs.rename`, `fs.renameSync`, `fs.rmdir`,
+  `fs.rmdirSync`, `fs.stat`, `fs.statSync`, `fs.symlink`, `fs.symlinkSync`,
+  `fs.truncate`, `fs.truncateSync`, `fs.unlink`, `fs.unlinkSync`, `fs.utimes`,
+  `fs.utimesSync`, `fs.write`, `fs.writeSync`, `fs.writeFile` and
+  `fs.writeFileSync`.
+
+* Mock `fs.Stats` objects have the following properties: `dev`, `ino`, `nlink`,
+  `mode`, `size`, `rdev`, `blksize`, `blocks`, `atime`, `ctime`, `mtime`,
+  `uid`, and `gid`.  In addition, all of the `is*()` methods are provided (e.g.
+  `isDirectory()` and `isFile()`).
+
+* Mock file access is controlled based on file mode where `process.getuid()` and
+  `process.getgid()` are available (POSIX systems). On other systems (e.g.
+  Windows) the file mode has no effect.
+
+* The following `fs` functions are **not** currently mocked (if your tests use
+  these, they will work against the real file system): `fs.FSWatcher`,
+  `fs.unwatchFile`, `fs.watch`, and `fs.watchFile`.
+
+### mock.file(properties)
+
+Creates a mock file. Supported properties:
+
+ * **content** - `string|Buffer` File contents.
+ * **mode** - `number` File mode (permission and sticky bits).  Defaults to `0666`.
+ * **uid** - `number` The user id.  Defaults to `process.getuid()`.
+ * **git** - `number` The group id.  Defaults to `process.getgid()`.
+ * **atime** - `Date` The last file access time.  Defaults to `new Date()`.  Updated when file contents are accessed.
+ * **ctime** - `Date` The last file change time.  Defaults to `new Date()`.  Updated when file owner or permissions change.
+ * **mtime** - `Date` The last file modification time.  Defaults to `new Date()`.  Updated when file contents change.
+
+```js
+var old = new Date(1);
+mock({
+  foo: mock.file({
+    content: 'file content here',
+    ctime: old,
+    mtime: old
+  })
+});
+```
+
+### mock.directory(properties)
+
+Creates a mock directory. Supported properties:
+
+ * **mode** - `number` Directory mode (permission and sticky bits).  Defaults to `0777`.
+ * **uid** - `number` The user id.  Defaults to `process.getuid()`.
+ * **git** - `number` The group id.  Defaults to `process.getgid()`.
+ * **atime** - `Date` The last directory access time.  Defaults to `new Date()`.
+ * **ctime** - `Date` The last directory change time.  Defaults to `new Date()`.  Updated when owner or permissions change.
+ * **mtime** - `Date` The last directory modification time.  Defaults to `new Date()`.  Updated when an item is added, removed, or renamed.
+ * **items** - `Object` Directory contents.  Members will generate additional files, directories, or symlinks.
+
+To create a mock filesystem with a directory with the relative path `some/dir` that has a mode of `0755` and a couple child files, you could do something like this:
+```js
+mock({
+  'some/dir': mock.directory({
+    mode: 0755,
+    items: {
+      file1: 'file one content',
+      file2: new Buffer([8, 6, 7, 5, 3, 0, 9])
+    }
+  })
+});
+```
+
+### mock.symlink(properties)
+
+Create a mock symlink. Supported properties:
+
+ * **path** - `string` Path to the source (required).
+ * **mode** - `number` Symlink mode (permission and sticky bits).  Defaults to `0666`.
+ * **uid** - `number` The user id.  Defaults to `process.getuid()`.
+ * **git** - `number` The group id.  Defaults to `process.getgid()`.
+ * **atime** - `Date` The last symlink access time.  Defaults to `new Date()`.
+ * **ctime** - `Date` The last symlink change time.  Defaults to `new Date()`.
+ * **mtime** - `Date` The last symlink modification time.  Defaults to `new Date()`.
+
+```js
+mock({
+  'some/dir': {
+    'regular-file': 'file contents',
+    'a-symlink': mock.symlink({
+      path: 'regular-file'
+    })
+  }
 });
 ```
 
@@ -464,7 +627,7 @@ You can also run `exam` from within your Node application. The module exposes
 itself as a function that accepts an `options` object containing the arguments
 you would pass to the CLI:
 
-```javascript
+```js
 var exam = require('exam');
 exam({
   paths: ['test'],
@@ -474,9 +637,78 @@ exam({
 
 ### Options
 
-| CLI argument   | Object property | Default   | Description                  |
-|----------------|-----------------|-----------|------------------------------|
-| -R, --reporter | reporter        | "console" | Which library will be used to output results - "console", "tap" or "xunit". |
-| -p, --parser   | parser          | "acorn"   | Which EcmaScript parser will be used to handle syntax errors - "acorn" or "esprima". |                             |
-| -w, --watch    | watch           | false     | Whether to keep the process running, watch for file changes, and re-run tests when a change is detected. |
-| -c, --cluster  | cluster         | true      | Whether to spawn child processes, creating a cluster of test runners. |
+#### -R, --reporter
+Which library will be used to output results. Options include "console",
+"tap", "xunit" and "counts". **Default: "console"**.
+
+#### -p, --parser
+Which EcmaScript parser will be used to handle syntax errors. Options include
+"acorn" and "esprima". **Default: "acorn"**.
+
+#### -w, --watch
+Whether to keep the process running, watch for file changes, and re-run tests
+when a change is detected. **Default: false**.
+
+#### -c, --cluster
+Whether to spawn child processes, creating a cluster of test runners.
+**Default: true**.
+
+
+## Acknowledgements
+Exam is heavily influenced by [mocha](https://www.npmjs.org/package/mocha), and
+it uses [mock-fs](https://www.npmjs.org/package/mock-fs), so thanks are due to
+[TJ Holowaychuk](https://github.com/visionmedia),
+[Tim Schaub](https://github.com/tschaub), and all of their contributors.
+
+Additional thanks go to [TUNE](http://www.tune.com) for employing and
+supporting core [Lighter.io](http://lighter.io) module contributors.
+
+
+## License
+
+The MIT License (MIT)
+
+Copyright (c) 2014 Sam Eubank
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+
+## How to Contribute
+We welcome contributions from the community and are happy to have them.
+Please follow this guide when logging issues or making code changes.
+
+### Logging Issues
+All issues should be created using the
+[new issue form](https://github.com/lighterio/exam/issues/new).
+Please describe the issue including steps to reproduce. Also, make sure
+to indicate the version that has the issue.
+
+### Changing Code
+Code changes are welcome and encouraged! Please follow our process:
+
+1. Fork the repository on GitHub.
+2. Fix the issue ensuring that your code follows the
+   [style guide](http://lighter.io/style-guide).
+3. Add tests for your new code, ensuring that you have 100% code coverage.
+   (If necessary, we can help you reach 100% prior to merging.)
+   * Run `npm test` to run tests quickly, without testing coverage.
+   * Run `npm run cover` to test coverage and generate a report.
+   * Run `npm run report` to open the coverage report you generated.
+4. [Pull requests](http://help.github.com/send-pull-requests/) should be made
+   to the [master branch](https://github.com/lighterio/exam/tree/master).

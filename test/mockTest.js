@@ -125,4 +125,46 @@ describe('mock', function () {
     });
   });
 
+  describe('.fs', function () {
+    it('creates files and directories', function (done) {
+      var fs = mock.fs({'/tmp/file.txt': 'FILE_CONTENT'});
+      fs.readFile('/tmp/file.txt', function (err, content) {
+        is(content.toString(), 'FILE_CONTENT');
+        unmock(fs);
+        done();
+      });
+    });
+    it('is unmockable', function (done) {
+      var fs = mock.fs({'/tmp/file.txt': 'FILE_CONTENT'});
+      var content = fs.readFileSync('/tmp/file.txt');
+      is(content.toString(), 'FILE_CONTENT');
+      unmock(fs);
+      fs.readFile('/tmp/file.txt', function (err) {
+        is.error(err);
+        done();
+      });
+    });
+    it('can leave Node\'s built-in fs alone', function (done) {
+      var fs = require('fs');
+      mock.fs({'a.txt': 'A'}, true);
+      fs.readFile('a.txt', function (err) {
+        is.error(err);
+        done();
+      });
+    });
+  });
+
+  describe('.file', function () {
+    it('creates a file', function () {
+      var fs = mock.fs({
+        'gid.txt': mock.file({
+          content: 'GROUP:1234',
+          gid: 1234
+        })
+      });
+      var stat = fs.statSync('gid.txt');
+      is(stat.gid, 1234);
+    });
+  });
+
 });
