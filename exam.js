@@ -1,17 +1,16 @@
 #!/usr/bin/env node
-var cwd = process.cwd();
 
 // Exam exposes a function that runs a test suite.
-var exam = module.exports = function (options) {
+global.exam = module.exports = function (options) {
 
   var fs = require('fs');
-  var cacheDir = cwd + '/.cache';
+  var cacheDir = options.dir + '/.cache';
   var manifestPath = cacheDir + '/exam-manifest.json';
   var manifest, workers;
   var reporter = require('./lib/reporters/' + options.reporter);
 
   // Save the state of the current run.
-  var waits, files, time, ignoreFiles;
+  var waits, files, time;
 
   // Remember which paths we're watching so we don't exhaust them.
   var isWatching = {};
@@ -37,12 +36,16 @@ var exam = module.exports = function (options) {
     waits = 0;
     files = [];
     time = new Date();
-    ignoreFiles = {};
     isRunning = true;
     initResults();
     reporter.start();
-    readManifest();
     findTests();
+    if (options.multiCpu) {
+      readManifest();
+    }
+    else {
+      manifest = {files: []};
+    }
     if (options.watch) {
       watch();
     }
@@ -163,14 +166,13 @@ var exam = module.exports = function (options) {
             else {
               list.forEach(function (file) {
                 var filePath = path + '/' + file;
-                if (file == '.examignore') {
-                  var content = '' + fs.readFileSync(filePath);
-                  var lines = content.split(/\s*[\n\r]+\s*/);
-                  lines.forEach(function (name) {
-                    ignoreFiles[name] = true;
-                  });
+                if (file == '.exam.js') {
+                  var config = require('./' + filePath);
+                  for (var key in config) {
+                    options[key] = config[key];
+                  }
                 }
-                else if (file != '.' && file != '..' && !ignoreFiles[file]) {
+                else if (file != '.' && file != '..' && !options.ignore.test(file)) {
                   read(filePath);
                 }
               });
@@ -203,8 +205,8 @@ var exam = module.exports = function (options) {
     var fork = require('child_process').fork;
     var cpus = require('os').cpus();
 
-    // In 1 process mode, fake a fork.
-    if (options.oneProcess) {
+    // In single process mode, fake a fork.
+    if (!options.multiCpu) {
       cpus = [1];
       process.send = receiveResult;
       fork = function (path, args) {
@@ -322,6 +324,9 @@ var exam = module.exports = function (options) {
       fs.writeFile(manifestPath, content, function () {
         // Allow a few milliseconds to ignore the file change.
         setTimeout(function () {
+          if (!options.watch) {
+            process.exit();
+          }
           isRunning = false;
         }, 99);
       });
@@ -337,41 +342,81 @@ Object.defineProperty(exam, 'version', {
   }
 });
 
-// If node loaded this file directly, run the tests.
+// If Node loaded this file directly, run the tests.
 if ((process.mainModule.filename == __filename) && !exam.options) {
   var argv = process.argv;
   var start = 2;
+
+  var flags = [
+    'help,h',
+    'version,V',
+    'parser,p',
+    'multi-cpu,m',
+    'require,r,1',
+    'reporter,R,1',
+    'ui,u,1',
+    'grep,g,1',
+    'ignore,i,1',
+    'timeout,t,1',
+    'slow,s,1',
+    'watch,w',
+    'colors,c',
+    'no-colors,C',
+    'growl,G',
+    'debug,d',
+    'bail,b',
+    'async-only,A',
+    'recursive',
+    'debug-brk',
+    'globals,1',
+    'check-leaks',
+    'interfaces',
+    'reporters',
+    'compilers'
+  ];
+
+  var map = {};
+  flags.forEach(function (flag) {
+    var argCount = 0;
+    flag = flag.replace(/,(\d)/, function (match, count) {
+      argCount = +count;
+      return '';
+    });
+    flag = flag.split(',');
+    flag.forEach(function (alias, index) {
+      map[(index ? '-' : '--') + alias] = [flag[0], argCount];
+    });
+  });
+
   var options = {
     parser: 'acorn',
     reporter: 'console',
     watch: false,
-    oneProcess: !!process.env.running_under_istanbul,
+    multiCpu: false,
     paths: [],
-    dir: cwd,
+    ignore: '^$',
+    dir: process.cwd(),
     id: process._EXAM_ID || 'EXAM'
   };
-  argv.forEach(function (arg, index) {
-    if (index >= start) {
-      var key = arg;
-      if (key == '-R' || key == '--reporter') {
-        options.reporter = argv[index + 1];
-        argv[index + 1] = '';
-      }
-      else if (key == '-p' || key == '--parser') {
-        options.parser = argv[index + 1];
-        argv[index + 1] = '';
-      }
-      else if (key == '-w' || key == '--watch') {
-        options.watch = true;
-      }
-      else if (key == '-o' || key == '--one-process') {
-        options.oneProcess = true;
-      }
-      else if (arg) {
-        options.paths.push(arg);
+
+  for (var index = 2; index < argv.length; index++) {
+    var arg = argv[index];
+    var option = map[arg];
+    if (option) {
+      var name = option[0].replace(/-[a-z]/, function (match) {
+        return match[1].toUpperCase();
+      });
+      options[name] = true;
+      var argCount = option[1];
+      while (argCount--) {
+        options[name] = argv[++index];
       }
     }
-  });
+    else {
+      options.paths.push(arg);
+    }
+  }
+  options.ignore = new RegExp(options.ignore);
   options.paths[0] = options.paths[0] || 'test';
   exam.options = options;
   exam(options);

@@ -34,7 +34,6 @@ describe('Empty scenario', function () {
   it('runs with full options', function (done) {
     invoke(
       'emptyTest',
-      '--one-process ' +
       '--reporter console ' +
       '--parser acorn ' +
       'test/scenarios/emptyTest.js',
@@ -47,8 +46,7 @@ describe('Empty scenario', function () {
   it('runs with shorthand options', function (done) {
     invoke(
       'emptyTest2',
-      '-o -R console -p acorn -' +
-      'test/scenarios/emptyTest.js',
+      '-R console -p acorn test/scenarios/emptyTest.js',
       function (output) {
         is.in(output, '0 passed');
         done();
@@ -61,7 +59,7 @@ describe('Skip scenario', function () {
   it('skips tests', function (done) {
     invoke(
       'skipTest',
-      '-o test/scenarios/skipTest.js',
+      'test/scenarios/skipTest.js',
       function (output) {
         is.in(output, 'skipTest');
         is.in(output, '1 passed');
@@ -78,7 +76,7 @@ describe('Only scenario', function () {
   it('only runs 2 tests', function (done) {
     invoke(
       'onlyTest',
-      '-o test/scenarios/onlyTest.js',
+      'test/scenarios/onlyTest.js',
       function (output) {
         is.in(output, 'onlyTest');
         is.in(output, '2 passed');
@@ -94,7 +92,7 @@ describe('Stub scenario', function () {
   it('stubs 1 test', function (done) {
     invoke(
       'stubTest',
-      '-o test/scenarios/stubTest.js',
+      'test/scenarios/stubTest.js',
       function (output) {
         is.in(output, 'stubTest');
         is.in(output, '0 passed');

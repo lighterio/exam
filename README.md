@@ -14,7 +14,7 @@ Exam is a JavaScript test runner, designed to be fast and easy.
 ### Powerful features
 * A terse assertion library called `is` (or use your own).
 * A fast mocking library called `mock` (or use your own).
-* Tests are distributed across CPUs for speed.
+* Tests can be distributed across CPUs for speed.
 
 ### Quick Start
 

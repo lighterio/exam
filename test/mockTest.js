@@ -125,24 +125,47 @@ describe('mock', function () {
     });
   });
 
+  describe('.time', function () {
+    it('freezes time', function () {
+      var time = 1412637494591;
+      var fs = mock.time(time);
+      var date = new Date();
+      is.defined(date.D);
+      is(date.getTime(), time);
+      unmock.time();
+    });
+    it('unfreezes time', function () {
+      var start = Date.now();
+      var time = 1412637494591;
+      is.greater(start, time);
+      var fs = mock.time(time);
+      is(Date.now(), time);
+      unmock.time();
+      is.not(Date.now(), time);
+      is.lessOrEqual(Date.now() - start, 9);
+    });
+  });
+
   describe('.fs', function () {
+    afterEach(unmock.fs);
     it('creates files and directories', function (done) {
       var fs = mock.fs({'/tmp/file.txt': 'FILE_CONTENT'});
       fs.readFile('/tmp/file.txt', function (err, content) {
         is(content.toString(), 'FILE_CONTENT');
-        unmock(fs);
         done();
       });
     });
-    it('is unmockable', function (done) {
+    it('can be unmocked', function (done) {
       var fs = mock.fs({'/tmp/file.txt': 'FILE_CONTENT'});
       var content = fs.readFileSync('/tmp/file.txt');
       is(content.toString(), 'FILE_CONTENT');
-      unmock(fs);
-      fs.readFile('/tmp/file.txt', function (err) {
-        is.error(err);
+      unmock.fs();
+      try {
+        fs.readFileSync('/tmp/file.txt');
+      }
+      catch (error) {
         done();
-      });
+      }
     });
     it('can leave Node\'s built-in fs alone', function (done) {
       var fs = require('fs');
@@ -155,6 +178,7 @@ describe('mock', function () {
   });
 
   describe('.file', function () {
+    afterEach(unmock.fs);
     it('creates a file', function () {
       var fs = mock.fs({
         'gid.txt': mock.file({
