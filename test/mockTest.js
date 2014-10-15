@@ -1,6 +1,7 @@
-describe('mock', function () {
+var a = [];
+var t = require('timers');
 
-  var a = [];
+describe('mock', function () {
 
   it('mocks and unmocks properties that exist', function () {
     mock(console, {
@@ -58,6 +59,7 @@ describe('mock', function () {
   });
 
   describe('.count', function () {
+
     it('counts calls', function () {
       mock(a, {
         join: mock.count()
@@ -69,9 +71,11 @@ describe('mock', function () {
       is(a.join.value, 2);
       unmock(a);
     });
+
   });
 
   describe('.concat', function () {
+
     it('concatenates strings', function () {
       mock(a, {
         join: mock.count()
@@ -83,6 +87,7 @@ describe('mock', function () {
       is(a.join.value, 2);
       unmock(a);
     });
+
     it('supports delimiters', function () {
       mock(a, {
         push: mock.concat(',')
@@ -96,9 +101,11 @@ describe('mock', function () {
       is(a.push.value, '1,2,3');
       unmock(a);
     });
+
   });
 
   describe('.args', function () {
+
     it('stores arguments', function () {
       mock(a, {
         push: mock.args()
@@ -111,6 +118,7 @@ describe('mock', function () {
       is.same(a.push.value, [{0: 1}, {0: 2}, {0: 1, 1: 2}]);
       unmock(a);
     });
+
     it('stores indexed arguments', function () {
       mock(a, {
         push: mock.args(0)
@@ -123,31 +131,13 @@ describe('mock', function () {
       is.same(a.push.value, [1, 2, 1]);
       unmock(a);
     });
-  });
 
-  describe('.time', function () {
-    it('freezes time', function () {
-      var time = 1412637494591;
-      var fs = mock.time(time);
-      var date = new Date();
-      is.defined(date.D);
-      is(date.getTime(), time);
-      unmock.time();
-    });
-    it('unfreezes time', function () {
-      var start = Date.now();
-      var time = 1412637494591;
-      is.greater(start, time);
-      var fs = mock.time(time);
-      is(Date.now(), time);
-      unmock.time();
-      is.not(Date.now(), time);
-      is.lessOrEqual(Date.now() - start, 9);
-    });
   });
 
   describe('.fs', function () {
+
     afterEach(unmock.fs);
+
     it('creates files and directories', function (done) {
       var fs = mock.fs({'/tmp/file.txt': 'FILE_CONTENT'});
       fs.readFile('/tmp/file.txt', function (err, content) {
@@ -155,6 +145,7 @@ describe('mock', function () {
         done();
       });
     });
+
     it('can be unmocked', function (done) {
       var fs = mock.fs({'/tmp/file.txt': 'FILE_CONTENT'});
       var content = fs.readFileSync('/tmp/file.txt');
@@ -167,6 +158,7 @@ describe('mock', function () {
         done();
       }
     });
+
     it('can leave Node\'s built-in fs alone', function (done) {
       var fs = require('fs');
       mock.fs({'a.txt': 'A'}, true);
@@ -175,10 +167,13 @@ describe('mock', function () {
         done();
       });
     });
+
   });
 
   describe('.file', function () {
+
     afterEach(unmock.fs);
+
     it('creates a file', function () {
       var fs = mock.fs({
         'gid.txt': mock.file({
@@ -189,6 +184,84 @@ describe('mock', function () {
       var stat = fs.statSync('gid.txt');
       is(stat.gid, 1234);
     });
+
+  });
+
+  describe('.time', function () {
+
+    it('freezes time', function () {
+      var time = 1412637494591;
+      mock.time(time);
+      var date = new Date();
+      is.defined(date._INNER_DATE);
+      is(date.getTime(), time);
+      unmock.time();
+    });
+
+    it('unfreezes time', function () {
+      var start = Date.now();
+      var time = 1412637494591;
+      is.greater(start, time);
+      mock.time(time);
+      is(Date.now(), time);
+      unmock.time();
+      is.not(Date.now(), time);
+      is.lessOrEqual(Date.now() - start, 9);
+    });
+
+    describe('.add', function () {
+
+      it('adds time', function () {
+        var time = 1412637494591;
+        mock.time(time);
+        is(Date.now(), time);
+
+        mock.time.add('5 milliseconds');
+        is(Date.now(), time += 5);
+
+        mock.time.add('1 second');
+        is(Date.now(), time += 1e3);
+
+        mock.time.add('10 minutes');
+        is(Date.now(), time += 6e5);
+
+        mock.time.add('2 hours');
+        is(Date.now(), time += 72e5);
+
+        mock.time.add('1 day');
+        is(Date.now(), time += 864e5);
+
+        unmock.time();
+      });
+
+    });
+
+    describe('.speed', function () {
+
+      it('speeds mock time', function (done) {
+
+        var time = 1412637494591;
+        var speed = 99;
+        mock.time(time);
+        mock.time.speed(speed);
+        function check() {
+          setImmediate(function () {
+            var elapsed = Date.now() - time;
+            if (elapsed) {
+              is(elapsed % speed, 0);
+              unmock.time();
+              done();
+            }
+            else {
+              check();
+            }
+          });
+        }
+        check();
+      });
+
+    });
+
   });
 
 });

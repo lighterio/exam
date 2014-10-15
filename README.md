@@ -51,8 +51,8 @@ Exam exposes global functions which you can use in your tests.
 ### describe(title, fn)
 Runs `fn` as a suite of tests.
 
-### it(does, fn)
-Runs `fn` to test what something does.
+### it(name, fn)
+Runs `fn` as a test for the named functionality.
 
 ### is(actual, expected)
 Asserts equality.
@@ -289,7 +289,8 @@ a string or regular expression, or 3) `search` is not found in `value`.
 Asserts that the value (string, array, etc.) has the specified length.
 
 #### is.notLengthOf(value, length)
-Asserts that the value (string, array, etc.) does not have the specified length.
+Asserts that the value (string, array, etc.) has no length, or a different
+length than specified.
 
 #### is.arrayOf(value, expectedTypeOrClass)
 Asserts that the value is an array of the specified type or an array of

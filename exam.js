@@ -40,7 +40,7 @@ global.exam = module.exports = function (options) {
     initResults();
     reporter.start();
     findTests();
-    if (options.multiCpu) {
+    if (options.multiProcess) {
       readManifest();
     }
     else {
@@ -145,7 +145,7 @@ global.exam = module.exports = function (options) {
    * Read or recurse the file path or directory that was specified (or default).
    */
   function findTests() {
-    function read(path) {
+    function read(path, isDeep) {
       waits++;
       fs.stat(path, function (err, stat) {
         if (err) {
@@ -157,7 +157,7 @@ global.exam = module.exports = function (options) {
             handle(err);
           }
         }
-        else if (stat.isDirectory()) {
+        else if (stat.isDirectory() && (!options.flat || !isDeep)) {
           waits++;
           fs.readdir(path, function (err, list) {
             if (err) {
@@ -172,8 +172,17 @@ global.exam = module.exports = function (options) {
                     options[key] = config[key];
                   }
                 }
-                else if (file != '.' && file != '..' && !options.ignore.test(file)) {
-                  read(filePath);
+                else {
+                  var isOk = (file !== '.' && file !== '..');
+                  if (options.grep) {
+                    isOk = isOk && options.grep.test(file);
+                  }
+                  if (options.ignore) {
+                    isOk = isOk && !options.ignore.test(file);
+                  }
+                  if (isOk) {
+                    read(filePath, true);
+                  }
                 }
               });
             }
@@ -206,7 +215,7 @@ global.exam = module.exports = function (options) {
     var cpus = require('os').cpus();
 
     // In single process mode, fake a fork.
-    if (!options.multiCpu) {
+    if (!options.multiProcess) {
       cpus = [1];
       process.send = receiveResult;
       fork = function (path, args) {
@@ -345,34 +354,34 @@ Object.defineProperty(exam, 'version', {
 // If Node loaded this file directly, run the tests.
 if ((process.mainModule.filename == __filename) && !exam.options) {
   var argv = process.argv;
-  var start = 2;
 
   var flags = [
-    'help,h',
-    'version,V',
-    'parser,p',
-    'multi-cpu,m',
-    'require,r,1',
     'reporter,R,1',
-    'ui,u,1',
-    'grep,g,1',
+    'parser,p',
+    'multi-process,m',
     'ignore,i,1',
+    'watch,w',
+    'bail,b',
+    'flat,f',
+    'grep,g,1',
     'timeout,t,1',
     'slow,s,1',
-    'watch,w',
-    'colors,c',
-    'no-colors,C',
-    'growl,G',
-    'debug,d',
-    'bail,b',
-    'async-only,A',
-    'recursive',
-    'debug-brk',
-    'globals,1',
-    'check-leaks',
-    'interfaces',
-    'reporters',
-    'compilers'
+    'very-slow,v,1',
+    'version,V',
+    //'help,h',
+    //'require,r,1',
+    //'ui,u,1',
+    //'colors,c',
+    //'no-colors,C',
+    //'growl,G',
+    //'debug,d',
+    //'async-only,A',
+    //'debug-brk',
+    //'globals,1',
+    //'check-leaks',
+    //'interfaces',
+    //'reporters',
+    //'compilers'
   ];
 
   var map = {};
@@ -384,24 +393,24 @@ if ((process.mainModule.filename == __filename) && !exam.options) {
     });
     flag = flag.split(',');
     flag.forEach(function (alias, index) {
-      map[(index ? '-' : '--') + alias] = [flag[0], argCount];
+      map[alias] = [flag[0], argCount];
     });
   });
 
   var options = {
     parser: 'acorn',
     reporter: 'console',
-    watch: false,
-    multiCpu: false,
+    slow: 10,
+    verySlow: 100,
+    timeout: 1000,
     paths: [],
-    ignore: '^$',
     dir: process.cwd(),
     id: process._EXAM_ID || 'EXAM'
   };
 
-  for (var index = 2; index < argv.length; index++) {
-    var arg = argv[index];
-    var option = map[arg];
+  var index;
+  function gotOption(flag) {
+    var option = map[flag];
     if (option) {
       var name = option[0].replace(/-[a-z]/, function (match) {
         return match[1].toUpperCase();
@@ -413,10 +422,28 @@ if ((process.mainModule.filename == __filename) && !exam.options) {
       }
     }
     else {
-      options.paths.push(arg);
+      throw new Error('Unknown option: "' + flag + '".');
     }
   }
-  options.ignore = new RegExp(options.ignore);
+  for (index = 2; index < argv.length; index++) {
+    argv[index].replace(/^(-*)(.*)$/, function (match, dash, rest) {
+      if (dash == '--') {
+        gotOption(rest);
+      }
+      else if (dash == '-') {
+        rest.split('').forEach(gotOption);
+      }
+      else {
+        options.paths.push(match);
+      }
+    });
+  }
+  if (options.version) {
+    console.log(exam.version);
+    process.exit();
+  }
+  options.grep = options.grep ? new RegExp(options.grep) : false;
+  options.ignore = options.ignore ? new RegExp(options.ignore) : false;
   options.paths[0] = options.paths[0] || 'test';
   exam.options = options;
   exam(options);

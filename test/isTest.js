@@ -677,7 +677,7 @@ describe('is', function () {
     is.lengthOf(s, 0); fail();
   });
 
-  it('.notLengthOf asserts a value is not an array or doesn\'t have a given length', function () {
+  it('.notLengthOf asserts a value is not an array or is not a given length', function () {
     is.notLengthOf(a, 0); fail();
     is.notLengthOf(a, 1); pass();
     is.notLengthOf(o, 0); pass();

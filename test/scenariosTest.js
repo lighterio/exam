@@ -1,52 +1,35 @@
 function invoke(id, args, done) {
   var examPath = require.resolve('../exam');
   var runPath = require.resolve('../lib/run');
-  var reporterPath = require.resolve('../lib/reporters/console');
   var argv = (process.execPath + ' ' + examPath + ' ' + args).split(' ');
   var examModule = require.cache[examPath];
   var exam = require(examPath);
   delete require.cache[examPath];
   delete require.cache[runPath];
-  var reporter = require(reporterPath);
+  var stdout = process.stdout;
+  var write = stdout.write;
   mock(process, {
     mainModule: examModule,
     _EXAM_ID: id,
     argv: argv,
     exit: mock.ignore(),
-    send: 0
+    send: mock.ignore()
   });
-  mock(reporter, {
-    stream: {
-      write: mock.concat()
-    }
-  });
+  stdout.write = mock.concat();
   process.on('exam:finished:' + id, function () {
     setImmediate(function () {
-      done(reporter.stream.write.value);
+      done(stdout.write.value);
       unmock(process);
-      unmock(reporter);
+      stdout.write = write;
     });
   });
   require(examPath);
 }
 
 describe('Empty scenario', function () {
-  it('runs with full options', function (done) {
+  it('runs with options', function (done) {
     invoke(
-      'emptyTest',
-      '--reporter console ' +
-      '--parser acorn ' +
-      'test/scenarios/emptyTest.js',
-      function (output) {
-        is.in(output, '0 passed');
-        done();
-      }
-    );
-  });
-  it('runs with shorthand options', function (done) {
-    invoke(
-      'emptyTest2',
-      '-R console -p acorn test/scenarios/emptyTest.js',
+      'emptyTest2', '-R console -p acorn test/scenarios/emptyTest.js',
       function (output) {
         is.in(output, '0 passed');
         done();
@@ -58,8 +41,7 @@ describe('Empty scenario', function () {
 describe('Skip scenario', function () {
   it('skips tests', function (done) {
     invoke(
-      'skipTest',
-      'test/scenarios/skipTest.js',
+      'skipTest', 'test/scenarios/skipTest.js',
       function (output) {
         is.in(output, 'skipTest');
         is.in(output, '1 passed');
@@ -75,8 +57,7 @@ describe('Skip scenario', function () {
 describe('Only scenario', function () {
   it('only runs 2 tests', function (done) {
     invoke(
-      'onlyTest',
-      'test/scenarios/onlyTest.js',
+      'onlyTest', 'test/scenarios/onlyTest.js',
       function (output) {
         is.in(output, 'onlyTest');
         is.in(output, '2 passed');
@@ -91,8 +72,7 @@ describe('Only scenario', function () {
 describe('Stub scenario', function () {
   it('stubs 1 test', function (done) {
     invoke(
-      'stubTest',
-      'test/scenarios/stubTest.js',
+      'stubTest', 'test/scenarios/stubTest.js',
       function (output) {
         is.in(output, 'stubTest');
         is.in(output, '0 passed');
@@ -107,8 +87,7 @@ describe('Stub scenario', function () {
 describe('Watch scenario', function () {
   it('watches files', function (done) {
     invoke(
-      'watchTest',
-      '-w test/scenarios/empty',
+      'watchTest', '-w test/scenarios/empty',
       function (output) {
         is.in(output, '0 passed');
         done();
@@ -120,8 +99,7 @@ describe('Watch scenario', function () {
 describe('Error scenario', function () {
   it('throws errors', function (done) {
     invoke(
-      'errorTest',
-      'test/scenarios/errorTest',
+      'errorTest', 'test/scenarios/errorTest',
       function (output) {
         is.in(output, '3 failed');
         done();
