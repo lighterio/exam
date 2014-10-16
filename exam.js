@@ -40,12 +40,7 @@ global.exam = module.exports = function (options) {
     initResults();
     reporter.start();
     findTests();
-    if (options.multiProcess) {
-      readManifest();
-    }
-    else {
-      manifest = {files: []};
-    }
+    readManifest();
     if (options.watch) {
       // If it's the first time watching, make a map of directories we watch.
       if (!isWatching) {
@@ -224,6 +219,7 @@ global.exam = module.exports = function (options) {
       process.send = receiveResult;
       fork = function (path, args) {
         process.argv.push(args[0]);
+        delete require.cache[path];
         require(path);
         return {on: function () {}};
       };
@@ -244,21 +240,21 @@ global.exam = module.exports = function (options) {
     });
 
     // Create a dictionary of files that are in the manifest.
-    var manifested = {};
+    var isManifested = {};
 
     // The manifest is sorted by largest to smallest runtime.
     var sorted = [];
     manifest.files.forEach(function (file) {
       var path = file.path;
       if (found[path]) {
-        manifested[path] = true;
+        isManifested[path] = true;
         sorted.push(path);
       }
     });
 
     // Push any new files onto the end (as if they ran instantly last time).
     files.forEach(function (path) {
-      if (!manifested[path]) {
+      if (!isManifested[path]) {
         sorted.push(path);
       }
     });

@@ -20,7 +20,9 @@ function invoke(id, args, done) {
     writeFile: mock.ignore()
   });
   stdout.write = mock.concat();
-  process.on('exam:finished:' + id, function () {
+  var event = 'exam:finished:' + id;
+  process.removeAllListeners(event)
+  process.on(event, function () {
     setImmediate(function () {
       done(stdout.write.value);
       unmock(process);
@@ -78,7 +80,6 @@ describe('Only scenario', function () {
 
 describe('Stub scenario', function () {
   it('stubs 1 test', function (done) {
-    is(1, 2);
     invoke(
       'stubTest', 'test/scenarios/stubTest.js',
       function (output) {
