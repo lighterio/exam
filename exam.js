@@ -12,11 +12,11 @@ global.exam = module.exports = function (options) {
   // Save the state of the current run.
   var waits, files, time;
 
-  // Remember which paths we're watching so we don't exhaust them.
-  var isWatching = {};
-
-  // Prevent triggering a re-run when we're already running.
+  // By default, don't watch for changes.
   var isRunning = false;
+
+  // Remember what we're watching (if we're watching).
+  var isWatching = false;
 
   // If forced to quit, ensure the prompt is on a new line.
   process.on('SIGINT', function () {
@@ -47,6 +47,10 @@ global.exam = module.exports = function (options) {
       manifest = {files: []};
     }
     if (options.watch) {
+      // If it's the first time watching, make a map of directories we watch.
+      if (!isWatching) {
+        isWatching = {};
+      }
       watch();
     }
   }
@@ -323,6 +327,9 @@ global.exam = module.exports = function (options) {
    */
   function finish() {
     reporter.all(outputs, passed, failed, skipped, stubbed, time);
+    if (options.timestamp) {
+      reporter.timestamp();
+    }
     process.emit('exam:finished:' + options.id);
     files.sort(function (a, b) {
       return b.time - a.time;
@@ -356,18 +363,19 @@ if ((process.mainModule.filename == __filename) && !exam.options) {
   var argv = process.argv;
 
   var flags = [
-    'reporter,R,1',
-    'parser,p',
-    'multi-process,m',
-    'ignore,i,1',
-    'watch,w',
-    'bail,b',
-    'flat,f',
-    'grep,g,1',
-    'timeout,t,1',
-    'slow,s,1',
-    'very-slow,v,1',
-    'version,V',
+    'reporter,R,1', // "console", "tap", etc. reporter.
+    'parser,p', // "esprima" or "acorn"
+    'multi-process,m', // If true, tests are distributed among CPUs.
+    'ignore,i,1', // Tests matching this pattern are ignored.
+    'watch,w', // When changes are made, test re-run.
+    'bail,b', // Exit upon the first test failure.
+    'flat,f', // If `flat`, we don't recurse down directories.
+    'grep,g,1', // Only run files that match a pattern.
+    'timeout,t,1', // Amount of time before considering a test failed.
+    'slow,s,1', // Amount of time before showing a yellow warning.
+    'very-slow,v,1', // Amount of time before showing a red warning.
+    'version,V', // Just output the version number.
+    'timestamp,T' // Show a timestamp at the bottom.
     //'help,h',
     //'require,r,1',
     //'ui,u,1',

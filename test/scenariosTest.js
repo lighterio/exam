@@ -1,3 +1,5 @@
+var fs = require('fs');
+
 function invoke(id, args, done) {
   var examPath = require.resolve('../exam');
   var runPath = require.resolve('../lib/run');
@@ -12,8 +14,10 @@ function invoke(id, args, done) {
     mainModule: examModule,
     _EXAM_ID: id,
     argv: argv,
-    exit: mock.ignore(),
     send: mock.ignore()
+  });
+  mock(fs, {
+    writeFile: mock.ignore()
   });
   stdout.write = mock.concat();
   process.on('exam:finished:' + id, function () {
@@ -21,6 +25,9 @@ function invoke(id, args, done) {
       done(stdout.write.value);
       unmock(process);
       stdout.write = write;
+      setImmediate(function () {
+        unmock(fs);
+      });
     });
   });
   require(examPath);
@@ -71,6 +78,7 @@ describe('Only scenario', function () {
 
 describe('Stub scenario', function () {
   it('stubs 1 test', function (done) {
+    is(1, 2);
     invoke(
       'stubTest', 'test/scenarios/stubTest.js',
       function (output) {
