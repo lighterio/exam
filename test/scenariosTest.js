@@ -8,28 +8,23 @@ function invoke(id, args, done) {
   var exam = require(examPath);
   delete require.cache[examPath];
   delete require.cache[runPath];
-  var stdout = process.stdout;
-  var write = stdout.write;
+  var write = process.stdout.write;
   mock(process, {
     mainModule: examModule,
     _EXAM_ID: id,
+    _EXAM_OPTIONS: 0,
     argv: argv,
-    send: mock.ignore()
+    send: 0
   });
-  mock(fs, {
-    writeFile: mock.ignore()
-  });
-  stdout.write = mock.concat();
+  process.stdout.write = mock.concat();
   var event = 'exam:finished:' + id;
-  process.removeAllListeners(event)
+  process.removeAllListeners(event);
   process.on(event, function () {
     setImmediate(function () {
-      done(stdout.write.value);
       unmock(process);
-      stdout.write = write;
-      setImmediate(function () {
-        unmock(fs);
-      });
+      process.stdout.write = write;
+      process.stderr.write(process.stdout.write.value);
+      done(process.stdout.write.value);
     });
   });
   require(examPath);

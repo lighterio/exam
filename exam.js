@@ -10,7 +10,7 @@ global.exam = module.exports = function (options) {
   var reporter = require('./lib/reporters/' + options.reporter);
 
   // Save the state of the current run.
-  var waits, files, time;
+  var waits, files, startTime;
 
   // By default, don't watch for changes.
   var isRunning = false;
@@ -25,7 +25,7 @@ global.exam = module.exports = function (options) {
   });
 
   // Save test results that are reported by each worker.
-  var outputs, passed, failed, hasOnly, skipped, stubbed;
+  var data;
 
   start();
 
@@ -35,12 +35,14 @@ global.exam = module.exports = function (options) {
   function start() {
     waits = 0;
     files = [];
-    time = new Date();
+    startTime = Date.now();
     isRunning = true;
     initResults();
     reporter.start();
     findTests();
-    readManifest();
+    if (options.multiProcess) {
+      readManifest();
+    }
     if (options.watch) {
       // If it's the first time watching, make a map of directories we watch.
       if (!isWatching) {
@@ -98,12 +100,14 @@ global.exam = module.exports = function (options) {
    * Initialize (or re-initialize) the result set.
    */
   function initResults() {
-    outputs = [];
-    passed = 0;
-    failed = [];
-    hasOnly = false;
-    skipped = 0;
-    stubbed = 0;
+    data = {
+      outputs: [],
+      passed: 0,
+      failed: 0,
+      hasOnly: false,
+      skipped: 0,
+      stubbed: 0
+    };
     isRunning = true;
   }
 
@@ -137,7 +141,7 @@ global.exam = module.exports = function (options) {
    */
   function handle(error) {
     error.trace = error.stack;
-    failed.push({title: 'Exam', errors: [error]});
+    (failed = failed || []).push({title: 'Exam', errors: [error]});
   }
 
   /**
@@ -244,13 +248,15 @@ global.exam = module.exports = function (options) {
 
     // The manifest is sorted by largest to smallest runtime.
     var sorted = [];
-    manifest.files.forEach(function (file) {
-      var path = file.path;
-      if (found[path]) {
-        isManifested[path] = true;
-        sorted.push(path);
-      }
-    });
+    if (manifest) {
+      manifest.files.forEach(function (file) {
+        var path = file.path;
+        if (found[path]) {
+          isManifested[path] = true;
+          sorted.push(path);
+        }
+      });
+    }
 
     // Push any new files onto the end (as if they ran instantly last time).
     files.forEach(function (path) {
@@ -285,32 +291,34 @@ global.exam = module.exports = function (options) {
    */
   function receiveResult(result) {
     if (result.id == options.id) {
-      skipped += result.skipped;
+      data.skipped += result.skipped;
 
       // If another process put us in "only" mode, count this one as skipped.
-      if (hasOnly && !result.hasOnly) {
-        skipped += result.passed + result.failed.length;
+      if (data.hasOnly && !result.hasOnly) {
+        data.skipped += result.passed + result.failed;
       }
       else {
         // If entering only mode, add all previous counts to "skipped".
-        if (result.hasOnly && !hasOnly) {
-          var total = passed + failed.length + skipped;
+        if (result.hasOnly && !data.hasOnly) {
           initResults();
-          hasOnly = true;
-          skipped = total;
+          data.hasOnly = true;
+          data.skipped += data.passed + data.failed;
         }
         if (result.output) {
-          outputs.push(result.output);
+          data.outputs.push(result.output);
         }
-        passed += result.passed;
-        stubbed += result.stubbed;
-        result.failed.forEach(function (failure) {
-          failed.push(failure);
-        });
+        data.passed += result.passed;
+        data.stubbed += result.stubbed;
+        if (result.errors) {
+          result.errors.forEach(function (error) {
+            (data.errors = data.errors || []).push(error);
+          });
+        }
         var times = result.times;
         for (var file in times) {
           files.push({path: file, time: times[file]});
         }
+        data.elapsed = Date.now() - startTime;
       }
       if (!--waits) {
         finish();
@@ -322,7 +330,7 @@ global.exam = module.exports = function (options) {
    * Upon receiving results from all runners, write the report and manifest.
    */
   function finish() {
-    reporter.all(outputs, passed, failed, skipped, stubbed, time);
+    reporter.all(data);
     if (options.timestamp) {
       reporter.timestamp();
     }
@@ -359,30 +367,27 @@ if ((process.mainModule.filename == __filename) && !exam.options) {
   var argv = process.argv;
 
   var flags = [
+    'version,V', // Just output the version number.
+    'require,r,1', // Require comma-delimited files before each test.
     'reporter,R,1', // "console", "tap", etc. reporter.
-    'parser,p', // "esprima" or "acorn"
-    'multi-process,m', // If true, tests are distributed among CPUs.
-    'ignore,i,1', // Tests matching this pattern are ignored.
-    'watch,w', // When changes are made, test re-run.
-    'bail,b', // Exit upon the first test failure.
-    'flat,f', // If `flat`, we don't recurse down directories.
+    'parser,p,1', // Parse JS with "esprima", "acorn" or "none".
     'grep,g,1', // Only run files that match a pattern.
+    'ignore,i,1', // Tests matching this pattern are ignored.
+    'bail,b', // Exit upon the first test failure.
+    'watch,w', // When changes are made, test re-run.
+    'multi-process,m', // If true, tests are distributed among CPUs.
+    'flat,f', // If `flat`, we don't recurse down directories.
     'timeout,t,1', // Amount of time before considering a test failed.
     'slow,s,1', // Amount of time before showing a yellow warning.
     'very-slow,v,1', // Amount of time before showing a red warning.
-    'version,V', // Just output the version number.
-    'timestamp,T' // Show a timestamp at the bottom.
+    'timestamp,T', // Show a timestamp after "console" reporter output.
+    'no-continuing,C', // Do not attempt `is` assertions after one fails.
+    'hide-progress,P'
     //'help,h',
-    //'require,r,1',
-    //'ui,u,1',
-    //'colors,c',
-    //'no-colors,C',
-    //'growl,G',
     //'debug,d',
-    //'async-only,A',
     //'debug-brk',
-    //'globals,1',
-    //'check-leaks',
+    //'growl,G',
+    //'async-only,A',
     //'interfaces',
     //'reporters',
     //'compilers'
@@ -419,14 +424,17 @@ if ((process.mainModule.filename == __filename) && !exam.options) {
       var name = option[0].replace(/-[a-z]/, function (match) {
         return match[1].toUpperCase();
       });
-      options[name] = true;
+      // Negate a flag (setting to true if undefined).
+      options[name] = !options[name];
+      // If it takes arguments, override the above negation with a value.
       var argCount = option[1];
       while (argCount--) {
         options[name] = argv[++index];
       }
     }
     else {
-      throw new Error('Unknown option: "' + flag + '".');
+      console.error('Unknown option: "' + flag + '".');
+      process.exit();
     }
   }
   for (index = 2; index < argv.length; index++) {
@@ -446,8 +454,15 @@ if ((process.mainModule.filename == __filename) && !exam.options) {
     console.log(exam.version);
     process.exit();
   }
-  options.grep = options.grep ? new RegExp(options.grep) : false;
-  options.ignore = options.ignore ? new RegExp(options.ignore) : false;
+  if (!/^(acorn|esprima|no.*)$/.test(options.parser)) {
+    console.error('Unknown parser: "' + options.parser + '".');
+    console.error('  Expected "acorn", "esprima", or "none".');
+    process.exit();
+  }
+  options.parser = options.parser.replace(/^no.*/, '');
+  options.require = options.require ? options.require.split(',') : 0;
+  options.grep = options.grep ? new RegExp(options.grep) : 0;
+  options.ignore = options.ignore ? new RegExp(options.ignore) : 0;
   options.paths[0] = options.paths[0] || 'test';
   exam.options = options;
   exam(options);

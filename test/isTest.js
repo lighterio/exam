@@ -25,44 +25,16 @@ describe('is', function () {
     is.function(is);
   });
 
-  it('.enableContinuation toggles continuation', function () {
-    is.enableContinuation();
-    is.in(is.pass.toString(), '.push');
-    is.enableContinuation(true);
-    is.in(is.pass.toString(), '.push');
-    is.enableContinuation(false);
-    is.notIn(is.pass.toString(), '.push');
-    is.enableContinuation(0);
-    is.notIn(is.pass.toString(), '.push');
+  it('.getResults returns results', function () {
+    is.getResults();
   });
 
-  it('.setCurrentTest sets the test', function () {
-    var test = {results: []};
+  it.skip('.fail throws an error', function (done) {
     unmock(is);
-    is.enableContinuation();
-    is.setCurrentTest(test);
-    is.pass();
-    is(test.results.length, 1);
-    is.setCurrentTest(null);
-    is.pass();
-  });
-
-  it('.pass does nothing without a currentTest', function () {
-    unmock(is);
-    is.setCurrentTest(null);
-    is.pass();
-  });
-
-  it('.fail throws errors when continuation is not enabled', function () {
-    unmock(is);
-    is.enableContinuation(false);
-    is.pass();
-  });
-
-  it('.fail throws an error', function (done) {
-    unmock(is);
+    mock(process._EXAM_OPTIONS, {
+      noContinuing: true
+    });
     try {
-      is.setCurrentTest(null);
       is.fail(['something', 'is not', 'working'], is.fail, 'something', 'working', 'is not');
     }
     catch (e) {
@@ -73,10 +45,11 @@ describe('is', function () {
 
   it('.fail pushes an error when "exam" is the runner', function () {
     unmock(is);
-    var test = {results: []};
-    is.setCurrentTest(test);
+    is.getResults();
     is.fail();
-    is(test.results.length, 1);
+    var results = is.getResults();
+    is.error(results.error);
+    is(results.length, 1);
   });
 
   it('.deep works in all cases', function () {

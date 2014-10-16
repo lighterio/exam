@@ -1,5 +1,3 @@
 module.exports = {
-
-  ignore: /^(assets|scenarios)$/
-
+  ignore: /^(assets|scenarios)/
 };
