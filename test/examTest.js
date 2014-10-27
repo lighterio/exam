@@ -3,21 +3,16 @@ var pkg = require('../package');
 
 require('zeriousify').test();
 
-describe('exam', function () {
+describe('Exam', function () {
 
   it('runs tests', function (done) {
     done();
   });
 
-  it('logs a line break on SIGINT', function (done) {
-    mock(process, {kill: mock.count()});
-    mock(console, {log: mock.concat()});
-    process.emit('SIGINT');
-    setImmediate(function () {
-      unmock(process);
-      unmock(console);
-      done();
-    });
+  it('logs a line break and kills the process on SIGINT', function () {
+    var code = process.listeners('SIGINT')[0].toString();
+    is.in(code, '\n');
+    is.in(code, 'process.kill()');
   });
 
   describe('version', function () {

@@ -25,15 +25,8 @@ describe('is', function () {
     is.function(is);
   });
 
-  it('.getResults returns results', function () {
-    is.getResults();
-  });
-
-  it.skip('.fail throws an error', function (done) {
+  it('.fail throws an error', function (done) {
     unmock(is);
-    mock(process._EXAM_OPTIONS, {
-      noContinuing: true
-    });
     try {
       is.fail(['something', 'is not', 'working'], is.fail, 'something', 'working', 'is not');
     }
@@ -43,18 +36,19 @@ describe('is', function () {
     }
   });
 
-  it('.fail pushes an error when "exam" is the runner', function () {
+  it('.fail emits an error when `is` is an emitter', function (done) {
     unmock(is);
-    is.getResults();
+    mock(is, {emit: function (event, result) {
+      assert.strictEqual(event, 'result');
+      assert(result instanceof Error);
+      done();
+    }});
     is.fail();
-    var results = is.getResults();
-    is.error(results.error);
-    is(results.length, 1);
   });
 
-  it('.deep works in all cases', function () {
+  it('.stringify works in all cases', function () {
     unmock(is);
-    is(is.deep({n: null}), '{n:null}');
+    is(is.stringify({n: null}), '{n:null}');
     // Try classes and max depth (stuff that's not in other tests).
     function Thing() {
       this.what = 'what?';
@@ -64,11 +58,11 @@ describe('is', function () {
     };
     var thing = new Thing();
     var hi = Thing.prototype.hi.toString();
-    is(is.deep(Thing), Thing.toString());
-    is(is.deep(thing), '{what:\"what?\",hi:' + Thing.prototype.hi.toString() + '}');
-    is(is.deep({for:1}), '{for:1}');
-    is(is.deep([[[[[[[[[[[1]]]]]]]]]]]), '[[[[[[[[[[[Array]]]]]]]]]]]');
-    is(is.deep([[[[[[[[[[{}]]]]]]]]]]), '[[[[[[[[[[[Object]]]]]]]]]]]');
+    is(is.stringify(Thing), Thing.toString());
+    is(is.stringify(thing), '{what:\"what?\",hi:' + Thing.prototype.hi.toString() + '}');
+    is(is.stringify({for:1}), '{for:1}');
+    is(is.stringify([[[[[[[[[[[1]]]]]]]]]]]), '[[[[[[[[[[[Array]]]]]]]]]]]');
+    is(is.stringify([[[[[[[[[[{}]]]]]]]]]]), '[[[[[[[[[[[Object]]]]]]]]]]]');
   });
 
   it('.is asserts strict equality', function () {
