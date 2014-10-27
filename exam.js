@@ -1,378 +1,2015 @@
 #!/usr/bin/env node
-var cwd = process.cwd();
-
-// Exam exposes a function that runs a test suite.
+var fs = require('fs');
+var tree = tree;
 var exam = module.exports = function (options) {
-
-  var fs = require('fs');
-  var cacheDir = cwd + '/.cache';
-  var manifestPath = cacheDir + '/exam-manifest.json';
-  var manifest, workers;
-  var reporter = require('./lib/reporters/' + options.reporter);
-
-  // Save the state of the current run.
-  var waits, files, time, ignoreFiles;
-
-  // Remember which paths we're watching so we don't exhaust them.
-  var isWatching = {};
-
-  // Prevent triggering a re-run when we're already running.
-  var isRunning = false;
-
-  // If forced to quit, ensure the prompt is on a new line.
-  process.on('SIGINT', function () {
-    console.log('\n');
-    process.kill();
-  });
-
-  // Save test results that are reported by each worker.
-  var outputs, passed, failed, hasOnly, skipped, stubbed;
-
-  start();
-
-  /**
-   * Kick off a test run (or re-run).
-   */
-  function start() {
-    waits = 0;
-    files = [];
-    time = new Date();
-    ignoreFiles = {};
-    isRunning = true;
-    initResults();
-    reporter.start();
-    readManifest();
-    findTests();
-    if (options.watch) {
-      watch();
-    }
+ options = exam.options || getOptions(options);
+ var waits, testFiles, assignments, data, isRunning;
+ if (options.watch) {
+  var fsWatchCount = 0;
+  var watchMap = {}, watchList = [];
+  var watchDelay = 1e3, watchStartTime = 0;
+ }
+ var manifest = {};
+ var cacheDir = options.dir + '/.cache/exam';
+ var manifestPath = cacheDir + '/manifest.json';
+ var reporter = exam[options.reporter]
+ var stream = reporter.stream = options.stream;
+ process.on('SIGINT', function () {
+  stream.write('\n\n');
+  process.kill();
+ });
+ start();
+ readManifest();
+ if (options.watch) {
+  watch(options.dir);
+  if (options.watchInterval) {
+   setInterval(checkRandomFile, options.watchInterval);
   }
-
-  /**
-   * Recurse directories and watch for changes.
-   * Upon any change, re-run tests.
-   */
-  function watch() {
-    var ignoreFiles = {
-      '.cache': true,
-      '.git': true,
-      'coverage': true,
-      'node_modules': true
-    };
-    function read(dir) {
-      if (!isWatching[dir]) {
-        isWatching[dir] = true;
-        fs.watch(dir, function () {
-          if (!isRunning) {
-            start();
+ }
+ function start() {
+  waits = 0;
+  testFiles = [];
+  isRunning = true;
+  initResults();
+  if (reporter.start) {
+   reporter.start(options);
+  }
+  findTests();
+ }
+ function watch(dir) {
+  if (!options.ignoreWatch.test(dir)) {
+   if (!watchMap[dir]) {
+    fs.lstat(dir, function (e, stat) {
+     if (!e) {
+      var time = stat.mtime.getTime();
+      if (stat.isSymbolicLink()) {
+       var key = 'ino:' + stat.ino;
+       if (!watchMap[key]) {
+        fs.stat(dir, function (e, stat) {
+         if (!e) {
+          if (stat.isDirectory()) {
+           addWatchDir(dir, time);
           }
+         }
         });
+       }
       }
-      fs.readdir(dir, function (err, list) {
-        if (err) {
-          handle(err);
-        }
-        else {
-          list.forEach(function (file) {
-            var path = dir + '/' + file;
-            if (file != '.' && file != '..' && !ignoreFiles[file]) {
-              fs.stat(path, function (err, stat) {
-                if (err) {
-                  handle(err);
-                }
-                else if (stat.isDirectory()) {
-                  read(path);
-                }
-              });
-            }
-          });
-        }
-      });
+      else if (stat.isDirectory()) {
+       addWatchDir(dir, time);
+      }
+     }
+    });
+   }
+  }
+ }
+ function addWatchDir(dir, mtime) {
+  if (!watchMap[dir] && watchList.length <= options.watchLimit) {
+   watchMap[dir] = mtime;
+   watchList.push(dir);
+   watchList.sort(function (a, b) {
+    return watchMap[a] > watchMap[b] ? -1 : 1; });
+   if (++fsWatchCount <= options.fsWatchLimit) {
+    try {
+     fs.watch(dir, onChange);
     }
-    read(options.dir);
-  }
-
-  /**
-   * Initialize (or re-initialize) the result set.
-   */
-  function initResults() {
-    outputs = [];
-    passed = 0;
-    failed = [];
-    hasOnly = false;
-    skipped = 0;
-    stubbed = 0;
-    isRunning = true;
-  }
-
-  /**
-   * Decrement the count of async events we're waiting for.
-   */
-  function unwait() {
-    if (!--waits) {
-      assignTests();
+    catch (e) {
+     }
+   }
+   fs.readdir(dir, function (e, files) {
+    if (!e) {
+     files.forEach(function (file) {
+      if (file != '.' && file != '..') {
+       watch(dir + '/' + file);
+      }
+     });
     }
+   });
   }
-
-  /**
-   * Read the manifest file (if possible), and ignore errors.
-   */
-  function readManifest() {
+ }
+ function checkRandomFile() {
+  var random = Math.pow(Math.random(), 3);
+  var index = Math.floor(random * watchList.length);
+  var dir = watchList[index];
+  fs.stat(dir, function (e, stat) {
+   if (!e && (stat.mtime > watchStartTime)) {
+    onChange();
+   }
+  });
+ }
+ function onChange() {
+  if (!isRunning && (Date.now() > watchStartTime)) {
+   start();
+  }
+ }
+ function initResults() {
+  data = {
+   started: Date.now(),
+   outputs: [],
+   passed: 0,
+   failed: 0,
+   hasOnly: false,
+   skipped: 0,
+   stubbed: 0,
+   times: {}
+  };
+  isRunning = true;
+ }
+ function unwait() {
+  if (!--waits) {
+   assignTests();
+  }
+ }
+ function readManifest() {
+  waits++;
+  fs.readFile(manifestPath, function (e, content) {
+   try {
+    manifest = JSON.parse(content);
+   }
+   catch (e) {
+    manifest = {testFiles: {}};
+   }
+   unwait();
+  });
+ }
+ function handleError(error) {
+  var list = data.errors = data.errors || [];
+  list.push('Exam Runner (' + __filename + ')\n' + error.stack);
+ }
+ function findTests() {
+  var optionsPattern = /\/\.exam\.js(on)?$/;
+  var testPattern = /\.js$/;
+  var testExtensions = ['.js'];
+  var ignorePattern = options.ignore;
+  options.paths.forEach(read);
+  function add(path) {
+   if (optionsPattern.test(path)) {
+    var config = require(options.dir + '/' + path);
+    for (var key in config) {
+     options[key] = config[key];
+    }
+    options.optionify();
+   }
+   else if (testPattern.test(path) && !(ignorePattern && ignorePattern.test(path))) {
+    testFiles.push(path);
+   }
+  }
+  function read(path, index) {
+   if (testPattern.test(path)) {
+    add(path);
+   }
+   else {
     waits++;
-    fs.readFile(manifestPath, function (err, content) {
-      try {
-        manifest = JSON.parse(content);
+    fs.readdir(path, function (err, list) {
+     if (err) {
+      var found = false;
+      if ((err.code == 'ENOENT') && (typeof index == 'number')) {
+       testExtensions.forEach(function (extension) {
+        if (!found && fs.existsSync(path + '.js')) {
+         found = true;
+         add(path + '.js');
+        }
+       });
       }
-      catch (e) {
-        manifest = {files: []};
+      if (!found) {
+       handleError(err);
       }
-      unwait();
-    });
-  }
-
-  /**
-   * Handle an error by adding it to failures rather than exiting.
-   */
-  function handle(error) {
-    error.trace = error.stack;
-    failed.push({title: 'Exam', errors: [error]});
-  }
-
-  /**
-   * Read or recurse the file path or directory that was specified (or default).
-   */
-  function findTests() {
-    function read(path) {
-      waits++;
-      fs.stat(path, function (err, stat) {
-        if (err) {
-          // TODO: Support .coffee and other extensions.
-          if (!/\.js$/.test(path)) {
-            read(path + '.js');
-          }
-          else {
-            handle(err);
-          }
+     }
+     else {
+      list.forEach(function (file) {
+       if (file.indexOf('.') < 0) {
+        if (options.recursive) {
+         read(path);
         }
-        else if (stat.isDirectory()) {
-          waits++;
-          fs.readdir(path, function (err, list) {
-            if (err) {
-              handle(err);
-            }
-            else {
-              list.forEach(function (file) {
-                var filePath = path + '/' + file;
-                if (file == '.examignore') {
-                  var content = '' + fs.readFileSync(filePath);
-                  var lines = content.split(/\s*[\n\r]+\s*/);
-                  lines.forEach(function (name) {
-                    ignoreFiles[name] = true;
-                  });
-                }
-                else if (file != '.' && file != '..' && !ignoreFiles[file]) {
-                  read(filePath);
-                }
-              });
-            }
-            unwait();
-          });
-        }
-        else {
-          var extension = path.replace(/^.*\./, '.');
-          if (require.extensions[extension] && (extension != '.json')) {
-            files.push(path);
-          }
-        }
-        unwait();
+       }
+       else {
+        add(path + '/' + file);
+       }
       });
-    }
-    options.paths.forEach(read);
+     }
+     unwait();
+    });
+   }
   }
-
-  /**
-   * If there are test files, assign them to cores for running.
-   */
-  function assignTests() {
-
-    if (!files.length) {
-      finish();
-      return;
-    }
-
-    var fork = require('child_process').fork;
-    var cpus = require('os').cpus();
-
-    // In 1 process mode, fake a fork.
-    if (options.oneProcess) {
-      cpus = [1];
-      process.send = receiveResult;
-      fork = function (path, args) {
-        process.argv.push(args[0]);
-        require(path);
-        return {on: function () {}};
-      };
-    }
-
-    // Prepare to fork at most once per CPU, and at most once per file.
-    var forkCount = Math.min(files.length, cpus.length);
-    var forkFile = __dirname + '/lib/run.js';
-    var workers = [];
-    for (var i = 0; i < forkCount; i++) {
-      workers[i] = [];
-    }
-
-    // Create a dictionary of files found this time.
-    var found = {};
-    files.forEach(function (path) {
-      found[path] = true;
-    });
-
-    // Create a dictionary of files that are in the manifest.
-    var manifested = {};
-
-    // The manifest is sorted by largest to smallest runtime.
-    var sorted = [];
-    manifest.files.forEach(function (file) {
-      var path = file.path;
-      if (found[path]) {
-        manifested[path] = true;
-        sorted.push(path);
-      }
-    });
-
-    // Push any new files onto the end (as if they ran instantly last time).
-    files.forEach(function (path) {
-      if (!manifested[path]) {
-        sorted.push(path);
-      }
-    });
-    files = sorted;
-
-    // Zig-zag over the list of files so that the slowest and fastest will hit
-    // the same core in the case where there are 2 passes.
-    // TODO: Assign more optimally by summing runtimes and juggling buckets.
-    var reverse = true;
-    files.forEach(function (path, index) {
-      var mod = index % forkCount;
-      if (!mod) reverse = !reverse;
-      index = reverse ? forkCount - 1 - mod : mod;
-      workers[index].push(path);
-    });
-    waits = forkCount;
-    files = [];
-    workers.forEach(function (files, index) {
-      options.files = files;
-      var arg = JSON.stringify(options);
-      var worker = workers[index] = fork(forkFile, [arg]);
-      worker.on('message', receiveResult);
-    });
+ }
+ function assignTests() {
+  if (!testFiles.length) {
+   finish();
+   return;
   }
-
-  /**
-   * Receive test results from a forked process.
-   */
-  function receiveResult(result) {
-    if (result.id == options.id) {
-      skipped += result.skipped;
-
-      // If another process put us in "only" mode, count this one as skipped.
-      if (hasOnly && !result.hasOnly) {
-        skipped += result.passed + result.failed.length;
+  var fork, cpus;
+  if (options.multiProcess) {
+   cpus = require('os').cpus();
+  }
+  else {
+   cpus = [1];
+   process.send = receiveResult;
+  }
+  if (options.multiProcess || options.debug) {
+   fork = require('child_process').fork;
+  }
+  else {
+   fork = function () {
+    tree(options);
+    return {on: function () {}};
+   };
+  }
+  var forkCount = Math.min(testFiles.length, cpus.length);
+  var assignments = [];
+  for (var i = 0; i < forkCount; i++) {
+   assignments[i] = [];
+  }
+  var fileTimes = {};
+  if (!manifest.files || (manifest.files instanceof Array)) {
+   manifest.files = {};
+  }
+  testFiles.forEach(function (path) {
+   var entry = manifest.files[path] || 0;
+   var time = entry.avg1 || 0;
+   fileTimes[path] = time || 0;
+  });
+  testFiles.sort(function (a, b) {
+   return fileTimes[a] > fileTimes[b] ? -1 : 1;
+  });
+  var reverse = true;
+  testFiles.forEach(function (path, index) {
+   var mod = index % forkCount;
+   if (!mod) reverse = !reverse;
+   index = reverse ? forkCount - 1 - mod : mod;
+   assignments[index].push(path);
+  });
+  waits = forkCount;
+  testFiles = [];
+  var args = process.argv.slice(2);
+  var argCount = args.length;
+  assignments.forEach(function (testFiles, index) {
+   options.files = testFiles;
+   args.push('--files');
+   args.push(testFiles.join(','));
+   var worker = fork(__filename, args);
+   worker.on('message', receiveResult);
+   args.length = argCount;
+  });
+ }
+ function receiveResult(result) {
+  if (result.id == options.id) {
+   data.skipped += result.skipped;
+   if (data.hasOnly && !result.hasOnly) {
+    data.skipped += result.passed + result.failed + result.stubbed;
+   }
+   else {
+    if (result.hasOnly && !data.hasOnly) {
+     initResults();
+     data.hasOnly = true;
+     data.skipped += data.passed + data.failed + data.stubbed;
+    }
+    if (result.output) {
+     data.outputs.push(result.output);
+    }
+    data.passed += result.passed;
+    data.failed += result.failed;
+    data.stubbed += result.stubbed;
+    if (result.errors) {
+     result.errors.forEach(function (error) {
+      (data.errors = data.errors || []).push(error);
+     });
+    }
+   }
+   var times = result.times;
+   for (var path in times) {
+    data.times[path] = times[path];
+   }
+   if (!--waits) {
+    data.time = Date.now() - data.started;
+    finish();
+   }
+  }
+ }
+ function finish() {
+  reporter.finishExam(data);
+  if (options.timestamp && reporter.timestamp) {
+   reporter.timestamp();
+  }
+  process.emit('exam:finished');
+  if (options.grep || options.ignore) {
+   end();
+  }
+  else {
+   var times = data.times;
+   for (var path in times) {
+    if (times.hasOwnProperty(path)) {
+     var newValue = times[path];
+     var entry = manifest.files[path] || {};
+     entry.runs = (entry.runs || 0) + 1;
+     for (var exponent = 0; exponent < 4; exponent++) {
+      var key = 'avg' + exponent;
+      var denominator = Math.min(entry.runs, Math.pow(10, exponent));
+      var newPortion = 1 / denominator;
+      var oldPortion = 1 - newPortion;
+      var oldValue = entry[key] || newValue;
+      entry[key] = newValue * newPortion + oldValue * oldPortion;
+     }
+     manifest.files[path] = entry;
+    }
+   }
+   mkdirp(cacheDir, function (e) {
+    if (e) {
+     stream.write('Failed to create exam cache directory: "' + cacheDir + '".\n' +  e.stack);
+     end();
+    }
+    else {
+     var content = JSON.stringify(manifest, null, '  ');
+     fs.writeFile(manifestPath, content, function (e) {
+      if (e) {
+       stream.write('Failed to write manifest: "' + manifestPath + '".\n' +  e.stack);
+      }
+      end();
+     });
+    }
+   });
+  }
+ }
+ function end() {
+  isRunning = false;
+  watchStartTime = Date.now() + watchDelay;
+  if (options.done) {
+   options.done();
+  }
+  if ((process.mainModule == module) && !options.watch) {
+   process.exit();
+  }
+ }
+};
+exam.version = '0.1.1';
+if ((process.mainModule == module) && !exam.options) {
+ exam.options = exam.options || getOptions();
+ setImmediate(function () {
+  (exam.options.files ? tree : exam)(exam.options);
+ });
+}
+var Emitter = function () {};
+Emitter.prototype = {
+ on: function on(type, fn) {
+  var events = this._events = this._events || {};
+  var listeners = events[type];
+  if (!listeners) {
+   events[type] = fn;
+  }
+  else if (typeof listeners == 'function') {
+   events[type] = [listeners, fn];
+  }
+  else {
+   listeners.push(fn);
+  }
+ },
+ emit: function (type, data) {
+  var events = this._events;
+  if (events) {
+   var listeners = events[type];
+   if (listeners) {
+    var n = arguments.length - 1;
+    if (n > 1) {
+     data = new Array(n);
+     while (n) {
+      data[--n] = arguments[n + 1];
+     }
+    }
+    if (typeof listeners == 'function') {
+     if (n > 1) {
+      listeners.apply(this, args);
+     }
+     else {
+      listeners.call(this, data);
+     }
+    }
+    else {
+     for (var i = 0, l = listeners.length; i < l; i++) {
+      if (n > 1) {
+       listeners[i].apply(this, args);
       }
       else {
-        // If entering only mode, add all previous counts to "skipped".
-        if (result.hasOnly && !hasOnly) {
-          var total = passed + failed.length + skipped;
-          initResults();
-          hasOnly = true;
-          skipped = total;
-        }
-        if (result.output) {
-          outputs.push(result.output);
-        }
-        passed += result.passed;
-        stubbed += result.stubbed;
-        result.failed.forEach(function (failure) {
-          failed.push(failure);
-        });
-        var times = result.times;
-        for (var file in times) {
-          files.push({path: file, time: times[file]});
-        }
+       listeners[i].call(this, data);
       }
-      if (!--waits) {
-        finish();
-      }
+     }
     }
+   }
   }
-
-  /**
-   * Upon receiving results from all runners, write the report and manifest.
-   */
-  function finish() {
-    reporter.all(outputs, passed, failed, skipped, stubbed, time);
-    process.emit('exam:finished:' + options.id);
-    files.sort(function (a, b) {
-      return b.time - a.time;
-    });
-    manifest = {files: files};
-    fs.mkdir(cacheDir, function (err) {
-      var content = JSON.stringify(manifest, null, '  ');
-      fs.writeFile(manifestPath, content, function () {
-        // Allow a few milliseconds to ignore the file change.
-        setTimeout(function () {
-          isRunning = false;
-        }, 99);
-      });
-    });
-  }
-
+ }
 };
-
-// Expose the version number, but only load package JSON if it's requested.
-Object.defineProperty(exam, 'version', {
-  get: function () {
-    return require('./package.json').version;
+Emitter.extend = function (emitter) {
+ var proto = Emitter.prototype;
+ emitter = emitter || {};
+ for (var key in proto) {
+  if (proto.hasOwnProperty(key)) {
+   emitter[key] = proto[key];
   }
-});
-
-// If node loaded this file directly, run the tests.
-if ((process.mainModule.filename == __filename) && !exam.options) {
-  var argv = process.argv;
-  var start = 2;
-  var options = {
-    parser: 'acorn',
-    reporter: 'console',
-    watch: false,
-    oneProcess: !!process.env.running_under_istanbul,
-    paths: [],
-    dir: cwd,
-    id: process._EXAM_ID || 'EXAM'
-  };
-  argv.forEach(function (arg, index) {
-    if (index >= start) {
-      var key = arg;
-      if (key == '-R' || key == '--reporter') {
-        options.reporter = argv[index + 1];
-        argv[index + 1] = '';
-      }
-      else if (key == '-p' || key == '--parser') {
-        options.parser = argv[index + 1];
-        argv[index + 1] = '';
-      }
-      else if (key == '-w' || key == '--watch') {
-        options.watch = true;
-      }
-      else if (key == '-o' || key == '--one-process') {
-        options.oneProcess = true;
-      }
-      else if (arg) {
-        options.paths.push(arg);
-      }
+ }
+ return emitter;
+};
+var path = require('path');
+var mkdirp = function (p, m, f) {
+ p = path.resolve(p);
+ if (typeof m == 'function') {
+  f = m;
+  m = 493; }
+ mk(p, m, f || function () {});
+};
+mkdirp.fs = require('fs');
+function mk(p, m, f, d) {
+ mkdirp.fs.mkdir(p, m, function (e) {
+  if (!e) {
+   d = d || p;
+   f(null, d);
+  }
+  else if (e.code == 'ENOENT') {
+   mkdirp(path.dirname(p), m, function (e, d) {
+    if (e) {
+     f(e, d);
     }
-  });
-  options.paths[0] = options.paths[0] || 'test';
-  exam.options = options;
-  exam(options);
+    else {
+     mkdirp(p, m, f, d);
+    }
+   });
+  }
+  else {
+   mkdirp.fs.stat(p, function (e2, stat) {
+    f((e2 || !stat.isDirectory()) ? e : null, d);
+   });
+  }
+ });
 }
+var stringify = function (obj, decycle, space) {
+ return JSON.stringify(obj, getSerialize(decycle), space);
+};
+function getSerialize(decycle) {
+ var seen = [], keys = [];
+ decycle = decycle || function(key, value) {
+  return '[Circular ' + getPath(value, seen, keys) + ']';
+ };
+ return function(key, value) {
+  var ret = value;
+  if (typeof value === 'object' && value) {
+   if (seen.indexOf(value) !== -1)
+    ret = decycle(key, value);
+   else {
+    seen.push(value);
+    keys.push(key);
+   }
+  }
+  return ret;
+ };
+}
+function getPath(value, seen, keys) {
+ var index = seen.indexOf(value);
+ var path = [ keys[index] ];
+ for (index--; index >= 0; index--) {
+  if (seen[index][ path[0] ] === value) {
+   value = seen[index];
+   path.unshift(keys[index]);
+  }
+ }
+ return '~' + path.join('.');
+}
+var AssertionError = require('assert').AssertionError;
+function is(actual, expected) {
+ var fn = (actual === expected) ? is.pass : is.fail;
+ var op = '===';
+ return fn([deep(actual), op, deep(expected)], is, actual, expected);
+}
+global.is = is.is = is;
+is.pass = function (pieces) {
+ if (is.emit) {
+  var message = (pieces instanceof Array) ? pieces.join(' ') : (pieces || 'pass');
+  is.emit('result', message);
+ }
+ return is;
+};
+is.fail = function (pieces, startFunction, actual, expected, operator) {
+ if (!operator) {
+  operator = expected;
+  expected = null;
+ }
+ var error = new AssertionError({
+  actual: actual,
+  expected: expected,
+  message: (pieces instanceof Array) ? pieces.join(' ') : (pieces || 'fail'),
+  operator: operator,
+  stackStartFunction: startFunction || is.fail
+ });
+ if (is.emit) {
+  is.emit('result', error);
+ }
+ else {
+  throw error;
+ }
+ return is;
+};
+is.not = function (actual, expected) {
+ var fn = (actual !== expected) ? is.pass : is.fail;
+ var op = '!==';
+ return fn([deep(actual), op, deep(expected)], is.not, actual, expected);
+};
+is.equal = function (actual, expected) {
+ var fn = (actual == expected) ? is.pass : is.fail;
+ var op = '==';
+ return fn([deep(actual), op, deep(expected)], is.equal, actual, expected);
+};
+is.notEqual = function (actual, expected) {
+ var fn = (actual != expected) ? is.pass : is.fail;
+ var op = '!=';
+ return fn([deep(actual), op, deep(expected)], is.notEqual, actual, expected);
+};
+is.same = is.deepEqual = function (actual, expected) {
+ var fn = (deep(actual) == deep(expected)) ? is.pass : is.fail;
+ var op = 'same';
+ return fn([deep(actual), op, deep(expected)], is.same, actual, expected);
+};
+is.notSame = is.notDeepEqual = function (actual, expected) {
+ var fn = (deep(actual) != deep(expected)) ? is.pass : is.fail;
+ var op = 'notSame';
+ return fn([deep(actual), op, deep(expected)], is.notSame, actual, expected);
+};
+is.greater = function (first, second) {
+ var fn = (first > second) ? is.pass : is.fail;
+ var op = '>';
+ return fn([deep(first), op, deep(second)], is.greater, first, second);
+};
+is.less = function (first, second) {
+ var fn = (first < second) ? is.pass : is.fail;
+ var op = '<';
+ return fn([deep(first), op, deep(second)], is.less, first, second);
+};
+is.greaterOrEqual = function (first, second) {
+ var fn = (first >= second) ? is.pass : is.fail;
+ var op = '>=';
+ return fn([deep(first), op, deep(second)], is.greaterOrEqual, first, second);
+};
+is.lessOrEqual = function (first, second) {
+ var fn = (first <= second) ? is.pass : is.fail;
+ var op = '<=';
+ return fn([deep(first), op, deep(second)], is.lessOrEqual, first, second);
+};
+is.type = function (value, type) {
+ var fn = (typeof value == type) ? is.pass : is.fail;
+ var op = 'is a ' + type;
+ return fn([deep(value), op, type], is.type, value, type);
+};
+is.notType = function (value, type) {
+ var fn = (typeof value != type) ? is.pass : is.fail;
+ var op = 'is a ' + type;
+ return fn([deep(value), op, type], is.notType, value, type);
+};
+is.undefined = function (value) {
+ var fn = (typeof value == 'undefined') ? is.pass : is.fail;
+ var op = 'is undefined';
+ return fn([deep(value), op], is.undefined, value);
+};
+is.notUndefined = is.defined = function (value) {
+ var fn = (typeof value != 'undefined') ? is.pass : is.fail;
+ var op = 'is defined';
+ return fn([deep(value), op], is.defined, value);
+};
+is.boolean = function (value) {
+ var fn = (typeof value == 'boolean' || value instanceof Boolean) ? is.pass : is.fail;
+ var op = 'is a boolean';
+ return fn([deep(value), op], is.boolean, value);
+};
+is.notBoolean = function (value) {
+ var fn = (typeof value != 'boolean' && !(value instanceof Boolean)) ? is.pass : is.fail;
+ var op = 'is not a boolean';
+ return fn([deep(value), op], is.notBoolean, value);
+};
+is.number = function (value) {
+ var fn = (typeof value == 'number' || value instanceof Number) ? is.pass : is.fail;
+ var op = 'is a number';
+ return fn([deep(value), op], is.number, value);
+};
+is.notNumber = function (value) {
+ var fn = (typeof value != 'number' && !(value instanceof Number)) ? is.pass : is.fail;
+ var op = 'is not a number';
+ return fn([deep(value), op], is.notNumber, value);
+};
+is.string = function (value) {
+ var fn = (typeof value == 'string' || value instanceof String) ? is.pass : is.fail;
+ var op = 'is a string';
+ return fn([deep(value), op], is.string, value);
+};
+is.notString = function (value) {
+ var fn = (typeof value != 'string' && !(value instanceof String)) ? is.pass : is.fail;
+ var op = 'is not a string';
+ return fn([deep(value), op], is.notString, value);
+};
+is.function = function (value) {
+ var fn = (typeof value == 'function' || value instanceof Function) ? is.pass : is.fail;
+ var op = 'is a function';
+ return fn([deep(value), op], is.function, value);
+};
+is.notFunction = function (value) {
+ var fn = (typeof value != 'function' && !(value instanceof Function)) ? is.pass : is.fail;
+ var op = 'is not a function';
+ return fn([deep(value), op], is.notFunction, value);
+};
+is.object = function (value) {
+ var fn = (typeof value == 'object') ? is.pass : is.fail;
+ var op = 'is an object';
+ return fn([deep(value), op], is.object, value);
+};
+is.notObject = function (value) {
+ var fn = (typeof value != 'object') ? is.pass : is.fail;
+ var op = 'is not an object';
+ return fn([deep(value), op], is.notObject, value);
+};
+is.instanceOf = function (value, expectedClass) {
+ var fn = (typeof expectedClass == 'function' && value instanceof expectedClass) ? is.pass : is.fail;
+ var op = 'is an instance of';
+ return fn([deep(value), op, expectedClass.name], is.instanceOf, value);
+};
+is.notInstanceOf = function (value, expectedClass) {
+ var fn = !(typeof expectedClass == 'function' && value instanceof expectedClass) ? is.pass : is.fail;
+ var op = 'is not an instance of';
+ return fn([deep(value), op, expectedClass.name], is.notInstanceOf, value);
+};
+is.array = function (value) {
+ var fn = (value instanceof Array) ? is.pass : is.fail;
+ var op = 'is an Array';
+ return fn([deep(value), op], is.array, value);
+};
+is.notArray = function (value) {
+ var fn = !(value instanceof Array) ? is.pass : is.fail;
+ var op = 'is not an Array';
+ return fn([deep(value), op], is.notArray, value);
+};
+is.date = function (value) {
+ var fn = (value instanceof Date) ? is.pass : is.fail;
+ var op = 'is a Date';
+ return fn([deep(value), op], is.date, value);
+};
+is.notDate = function (value) {
+ var fn = !(value instanceof Date) ? is.pass : is.fail;
+ var op = 'is not a Date';
+ return fn([deep(value), op], is.notDate, value);
+};
+is.error = function (value) {
+ var fn = (value instanceof Error) ? is.pass : is.fail;
+ var op = 'is an Error';
+ return fn([deep(value), op], is.error, value);
+};
+is.notError = function (value) {
+ var fn = !(value instanceof Error) ? is.pass : is.fail;
+ var op = 'is not an Error';
+ return fn([deep(value), op], is.notError, value);
+};
+is.regExp = function (value) {
+ var fn = (value instanceof RegExp) ? is.pass : is.fail;
+ var op = 'is a RegExp';
+ return fn([deep(value), op], is.regExp, value);
+};
+is.notRegExp = function (value) {
+ var fn = !(value instanceof RegExp) ? is.pass : is.fail;
+ var op = 'is not a RegExp';
+ return fn([deep(value), op], is.notRegExp, value);
+};
+is.nan = function (value) {
+ var fn = isNaN(value) ? is.pass : is.fail;
+ var op = 'is NaN';
+ return fn([deep(value), op], is.nan, value);
+};
+is.notNan = function (value) {
+ var fn = !isNaN(value) ? is.pass : is.fail;
+ var op = 'is not NaN';
+ return fn([deep(value), op], is.notNan, value);
+};
+is.null = function (value) {
+ var fn = (value === null) ? is.pass : is.fail;
+ var op = 'is null';
+ return fn([deep(value), op], is.null, value);
+};
+is.notNull = function (value) {
+ var fn = (value !== null) ? is.pass : is.fail;
+ var op = 'is not null';
+ return fn([deep(value), op], is.notNull, value);
+};
+is.true = function (value) {
+ var fn = (value === true) ? is.pass : is.fail;
+ var op = 'is true';
+ return fn([deep(value), op], is.true, value);
+};
+is.notTrue = function (value) {
+ var fn = (value !== true) ? is.pass : is.fail;
+ var op = 'is not true';
+ return fn([deep(value), op], is.true, value);
+};
+is.false = function (value) {
+ var fn = (value === false) ? is.pass : is.fail;
+ var op = 'is false';
+ return fn([deep(value), op], is.false, value);
+};
+is.notFalse = function (value) {
+ var fn = (value !== false) ? is.pass : is.fail;
+ var op = 'is not false';
+ return fn([deep(value), op], is.false, value);
+};
+is.truthy = function (value) {
+ var fn = value ? is.pass : is.fail;
+ var op = 'is truthy';
+ return fn([deep(value), op], is.truthy, value);
+};
+is.falsy = function (value) {
+ var fn = !value ? is.pass : is.fail;
+ var op = 'is falsy';
+ return fn([deep(value), op], is.falsy, value);
+};
+is.in = function (value, search) {
+ var ok = (typeof value == 'string');
+ if (ok) {
+  if (search instanceof RegExp) {
+   ok = search.test(value);
+  }
+  else {
+   ok = value.indexOf(search) > -1;
+  }
+ }
+ var fn = ok ? is.pass : is.fail;
+ var op = 'is in';
+ return fn([deep(search), op, deep(value)], is.in, search, value);
+};
+is.notIn = function (value, search) {
+ var ok = (typeof value == 'string');
+ if (ok) {
+  if (search instanceof RegExp) {
+   ok = search.test(value);
+  }
+  else {
+   ok = value.indexOf(search) > -1;
+  }
+ }
+ var fn = !ok ? is.pass : is.fail;
+ var op = 'is not in';
+ return fn([deep(search), op, deep(value)], is.notIn, search, value);
+};
+is.lengthOf = function (value, length) {
+ var fn = (value && (value.length === length)) ? is.pass : is.fail;
+ var op = 'has a length of';
+ return fn([deep(value), op, length], is.lengthOf, value, length);
+};
+is.notLengthOf = function (value, length) {
+ var fn = (!value || (value.length !== length)) ? is.pass : is.fail;
+ var op = 'does not have a length of';
+ return fn([deep(value), op, length], is.notLengthOf, value, length);
+};
+function isArrayOf(array, expected) {
+ var isOk = (array instanceof Array);
+ if (isOk) {
+  var isString = (typeof expected == 'string');
+  array.forEach(function (item) {
+   isOk = isOk && (isString ? (typeof item == expected) : (item instanceof expected));
+  });
+ }
+ return isOk;
+}
+is.arrayOf = function (array, expected) {
+ var ex = expected || 'undefined';
+ var name = ex.name || ex;
+ var fn = (expected && isArrayOf(array, ex)) ? is.pass : is.fail;
+ var op = 'is an array of ' + ex + 's';
+ return fn([deep(array), op, deep(name)], is.arrayOf, array, expected);
+};
+is.notArrayOf = function (array, expected) {
+ var ex = expected || 'undefined';
+ var name = ex.name || ex;
+ var fn = (expected && !isArrayOf(array, ex)) ? is.pass : is.fail;
+ var op = 'is not an array of ' + ex + 's';
+ return fn([deep(array), op, deep(name)], is.notArrayOf, array, expected);
+};
+function deep(data, stack) {
+ if (data === null) {
+  data = 'null';
+  if (stack) {
+   data = data;
+  }
+ }
+ else if (typeof data == 'function') {
+  data = data.toString();
+ }
+ else if (data instanceof Date) {
+  data = '(new Date("' + data.toISOString() + '"))';
+ }
+ else if (data instanceof Error) {
+  data = '(new Error("' + (data.message || data.toString()).replace(/"/g, '\\"') + '"))';
+ }
+ else if (typeof data == 'object') {
+  stack = stack || [];
+  var circular = 0;
+  stack.forEach(function (item, index) {
+   if ((item == data) && !circular) {
+    circular = -(index + 1);
+   }
+  });
+  if (circular) {
+   return '{_CIRCULAR:' + circular + '}';
+  }
+  stack.push(data);
+  var parts = [];
+  var text;
+  var isArray = (data instanceof Array);
+  if (stack.length > 10) {
+   data = (isArray ? '[Array]' : '[Object]');
+  }
+  else {
+   if (isArray) {
+    data.forEach(function (value) {
+     text = deep(value, stack);
+     parts.push(text);
+    });
+   }
+   else {
+    for (var key in data) {
+     var value = data[key];
+     text = key + ':' + deep(value, stack);
+     parts.push(text);
+    }
+   }
+   stack.pop();
+   data = parts.join(',');
+   if (isArray) {
+    data = '[' + data + ']';
+   }
+   else {
+    data = '{' + data + '}';
+   }
+  }
+ }
+ else {
+  if (typeof data == 'string') {
+   data = '"' + data.replace(/"/g, '\\"') + '"';
+  }
+  else {
+   data = '' + data;
+  }
+ }
+ return data;
+}
+Object.defineProperty(is, 'stringify', {
+ enumerable: false,
+ value: deep
+});
+var mockedObjects = [];
+var mockFs;
+global.mock = function mock(object, mockObject) {
+ var mocked = object._EXAM_MOCKED_ORIGINALS;
+ if (!mocked) {
+  mocked = [{}, {}];
+  Object.defineProperty(object, '_EXAM_MOCKED_ORIGINALS', {
+   enumerable: false,
+   value: mocked
+  });
+ }
+ for (var key in mockObject) {
+  var index = object.hasOwnProperty(key) ? 1 : 0;
+  if (typeof mocked[index][key] == 'undefined') {
+   mocked[index][key] = object[key];
+  }
+  object[key] = mockObject[key];
+ }
+ mockedObjects.push(object);
+ return object;
+};
+global.unmock = function unmock(object, keys) {
+ if (!arguments.length) {
+  mockedObjects.forEach(function (object) {
+   unmock(object);
+  });
+  mockedObjects.length = 0;
+  unmock.fs();
+  unmock.time();
+  return;
+ }
+ if (typeof keys == 'string') {
+  keys = [keys];
+ }
+ var mocked = object._EXAM_MOCKED_ORIGINALS;
+ if (mocked) {
+  for (index = 0; index < 2; index++) {
+   var originals = keys || mocked[index];
+   for (var key in originals) {
+    if (index) {
+     object[key] = originals[key];
+    }
+    else {
+     delete object[key];
+    }
+   }
+  }
+  if (!keys) {
+   delete object._EXAM_MOCKED_ORIGINALS;
+  }
+ }
+};
+function decorateFn(fn, args) {
+ fn.returns = function (value) {
+  fn._returns = value;
+  return fn;
+ };
+ return fn;
+}
+function finishFn(fn) {
+ return fn._returns;
+}
+mock.ignore = function () {
+ var fn = function () {
+  return finishFn(fn);
+ };
+ return decorateFn(fn);
+};
+mock.count = function () {
+ function fn(data) {
+  fn.value++;
+  return finishFn(fn);
+ }
+ fn.value = 0;
+ return decorateFn(fn);
+};
+mock.set = function (index) {
+ function fn(data) {
+  fn.value = isNaN(index) ? arguments : arguments[index];
+  return finishFn(fn);
+ }
+ fn.value = [];
+ return decorateFn(fn);
+};
+mock.args = function (index) {
+ function fn(data) {
+  fn.value.push(isNaN(index) ? arguments : arguments[index]);
+  return finishFn(fn);
+ }
+ fn.value = [];
+ return decorateFn(fn);
+};
+mock.concat = function (delimiter) {
+ delimiter = delimiter || '';
+ function fn(data) {
+  fn.value += (fn.value ? delimiter : '') + data;
+  return finishFn(fn);
+ }
+ fn.value = '';
+ return decorateFn(fn);
+};
+mock.throw = function (message) {
+ function fn() {
+  var error = new Error(message);
+  error.arguments = arguments;
+  fn.value.push(error);
+  throw error;
+ }
+ fn.value = [];
+ return decorateFn(fn);
+};
+mock.fs = function (config, newFs) {
+ mockFs = require('mock-fs');
+ var fs;
+ if (newFs) {
+  fs = mockFs.fs(config);
+ }
+ else {
+  mockFs(config);
+  fs = require('fs');
+ }
+ return fs;
+};
+mock.fs.load = function (paths) {
+ var load = {};
+ paths.forEach(function (path) {
+  load[path] = fs.readFileSync(path);
+ });
+ return load;
+};
+unmock.fs = function () {
+ if (mockFs) {
+  mockFs.restore();
+  mockFs = null;
+ }
+};
+var timers = require('timers');
+timers.Date = Date;
+mock.time = function (value) {
+ var date = new timers.Date(value);
+ mock.time._CURRENT_TIME = date.getTime();
+ mock(timers.Date, {now: MockDate.now});
+ global.Date = MockDate;
+ return mock.time;
+};
+function MockDate(value) {
+ var innerDate;
+ if (arguments.length) {
+  innerDate = new timers.Date(value);
+ }
+ else if (global.Date == timers.Date) {
+  innerDate = new timers.Date();
+ }
+ else {
+  innerDate = new timers.Date(mock.time._CURRENT_TIME);
+ }
+ Object.defineProperty(this, '_INNER_DATE', {
+  enumerable: false,
+  value: innerDate
+ });
+}
+MockDate.now = function () {
+ if (mock.time._CURRENT_TIME === undefined) {
+  return realNow();
+ }
+ else {
+  return mock.time._CURRENT_TIME;
+ }
+};
+MockDate.parse = timers.Date.parse;
+MockDate.UTC = timers.Date.UTC;
+['getDate', 'getDay', 'getFullYear', 'getHours', 'getMilliseconds',
+ 'getMinutes', 'getMonth', 'getSeconds', 'getTime', 'getTimezoneOffset',
+ 'getUTCDate', 'getUTCDay', 'getUTCFullYear', 'getUTCHours',
+ 'getUTCMilliseconds', 'getUTCMinutes', 'getUTCMonth', 'getUTCSeconds',
+ 'getYear', 'setDate', 'setFullYear', 'setHours', 'setMilliseconds',
+ 'setMinutes', 'setMonth', 'setSeconds', 'setTime', 'setUTCDate',
+ 'setUTCFullYear', 'setUTCHours', 'setUTCMilliseconds', 'setUTCMinutes',
+ 'setUTCMonth', 'setUTCSeconds', 'setYear', 'toDateString', 'toGMTString',
+ 'toISOString', 'toJSON', 'toLocaleDateString', 'toLocaleString',
+ 'toLocaleTimeString', 'toString', 'toTimeString', 'toUTCString',
+ 'valueOf'].forEach(function (name) {
+ MockDate.prototype[name] = function () {
+  return this._INNER_DATE[name].apply(this._INNER_DATE, arguments);
+ };
+});
+mock.time.add = function (time) {
+ var p = /(\d+)\s*(s|seconds?)?(m|minutes?)?(h|hours?)?(d|days?)?\b/;
+ ('' + time).replace(p, function (match, n, s, m, h, d) {
+  mock.time._CURRENT_TIME += +n * (s ? 1e3 : m ? 6e4 : h ? 36e5 : d ? 864e5 : 1);
+ });
+ runSchedules();
+};
+mock.time.speed = function (speed, interval) {
+ mock.time._SPEED = speed || 1e3;
+ moveTime();
+};
+function moveTime() {
+ if (mock.time._SPEED) {
+  mock.time._PREVIOUS_TIME = realNow();
+  setImmediate(function () {
+   var now = realNow();
+   var elapsed = now - mock.time._PREVIOUS_TIME;
+   if (elapsed) {
+    var add = elapsed * mock.time._SPEED;
+    mock.time.add(add);
+   }
+   moveTime();
+  });
+ }
+}
+function realNow() {
+ return (new timers.Date()).getTime();
+}
+var schedules = [];
+schedules.id = 0;
+schedules.sort = function () {
+ Array.prototype.sort.call(schedules, function (a, b) {
+  return b.time - a.time;
+ });
+ console.log(schedules);
+};
+function getScheduler(isInterval) {
+ return function (fn, time) {
+  schedules.push({
+   id: ++schedules.id,
+   fn: fn,
+   time: Date.now() + time,
+   interval: isInterval ? time : false
+  });
+ };
+}
+function getUnscheduler() {
+ return function (id) {
+  for (var i = schedules.length - 1; i >= 0; i--) {
+   var schedule = schedules[i];
+   if (schedule.id == id) {
+    delete schedules[i];
+    break;
+   }
+  }
+ };
+}
+function runSchedules() {
+ var i = 0;
+ var schedule = schedules[i];
+ while (schedule && (schedule.time <= mock.time._CURRENT_TIME)) {
+  schedule.fn();
+  if (schedule.interval === false) {
+   delete schedule[i];
+  }
+  else {
+   schedule.time += schedule.interval;
+  }
+  schedule = schedules[++i] || null;
+ }
+}
+unmock.time = function () {
+ delete mock.time._CURRENT_TIME;
+ delete mock.time._SPEED;
+ global.Date = timers.Date;
+ unmock(timers.Date, 'now');
+};
+['directory', 'file', 'symlink'].forEach(function (method) {
+ mock[method] = function() {
+  var mockFs = require('mock-fs');
+  return mockFs[method].apply(mockFs, arguments);
+ };
+});
+function getOptions(options) {
+ var defaults = {
+  parser: 'none',
+  reporter: 'console',
+  slow: 10,
+  verySlow: 1e2,
+  timeout: 1e3,
+  paths: [],
+  dir: process.cwd(),
+  ignoreWatch: /\/(\.cache|\.git)$/,
+  fsWatchLimit: 20,
+  watchInterval: 1e2,
+  watchLimit: 1e3,
+  stream: process.stdout
+ };
+ if (options) {
+  for (var name in defaults) {
+   options[name] = options[name] || defaults[name];
+  }
+ }
+ else {
+  options = defaults;
+ }
+ var argv = process.argv;
+ var flags = [
+  'help|h||Show usage information',
+  'version|V||Show the `exam` version number',
+  'require|r|<path>|Require a module before each test file',
+  'reporter|R|<name>|Result reporter ("console", "tap", "xunit" or "counts")',
+  'recursive|v||Load test files recursively',
+  'parser|p|<parser>|EcmaScript parser ("esprima", "acorn", or "none")',
+  'bail|b||Exit after the first test failure',
+  'grep|g|<pattern>|Only run files/tests that match a pattern',
+  'ignore|i|<pattern>|Exclude files/tests that match a pattern',
+  'watch|w||When changes are made, re-run tests',
+  'ignore-watch|W|<pattern>|Do not watch files that match a pattern',
+  'fs-watch-limit|l|<number>|Cap the number of `fs.watch` calls',
+  'watch-limit|L|<ms>| Cap the number of `fs.stat` watched directories',
+  'fallback-watch-interval|I|<ms>|Milliseconds between `fs.stat` calls for watching',
+  'debug|d||Run `node` with the --debug flag',
+  'multi-process|m||If true, tests are distributed among CPUs',
+  'timeout|t|<ms>|Test case timeout in milliseconds',
+  'slow|s|<ms>|Slow test (yellow warning) threshold in milliseconds',
+  'very-slow|S|<ms>|Very slow (red warning) threshold in milliseconds',
+  'hide-ascii|A||Do not show ASCII art before the run',
+  'hide-progress|P||Do not show dots as tests run',
+  'continue-asserts|c||Continue a test after a failed assertion',
+  'no-colors|C||Turn off color console logging',
+  'timestamp|T||Show a timestamp after console reporter output',
+  'files||<files>|Run tests on a comma-delimited set of files'
+ ];
+ var map = {};
+ flags.forEach(function (flag) {
+  flag = flag.split('|');
+  map[flag[0]] = flag;
+  map[flag[1]] = flag;
+ });
+ for (var index = 2; index < argv.length; index++) {
+  argv[index].replace(/^\s*(-*)(.*)\s*$/g, dashify);
+ }
+ options.optionify = function () {
+  if (options.version) {
+   console.log(exam.version);
+   process.exit();
+  }
+  if (!/^(acorn|esprima|no.*|)$/.test(options.parser)) {
+   console.error('Unknown parser: "' + options.parser + '".');
+   console.error('  Expected "acorn", "esprima", or "none".');
+   process.exit();
+  }
+  options.parser = options.parser.replace(/^no.*/, '');
+  options.paths[0] = options.paths[0] || 'test';
+  arrayify('require');
+  arrayify('files');
+  regexpify('grep');
+  regexpify('ignore');
+  regexpify('ignoreWatch');
+  if (options.watch) {
+   options.multipProcess = true;
+  }
+ };
+ options.optionify();
+ function dashify(match, dash, rest) {
+  if (dash == '--') {
+   gotOption(rest);
+  }
+  else if (dash == '-') {
+   rest.split('').forEach(gotOption);
+  }
+  else {
+   options.paths.push(match);
+  }
+ }
+ function gotOption(flag) {
+  var option = map[flag];
+  if (option) {
+   var name = option[0].replace(/-[a-z]/, function (match) {
+    return match[1].toUpperCase();
+   });
+   options[name] = !options[name];
+   var argCount = option[2] ? option[2].split(' ').length : 0;
+   while (argCount--) {
+    options[name] = argv[++index];
+   }
+  }
+  else {
+   console.error('Unknown option: "' + flag + '".');
+   process.exit();
+  }
+ }
+ function arrayify(key) {
+  if (typeof options[key] == 'string') {
+   options[key] = options[key].split(',');
+  }
+ }
+ function regexpify (key) {
+  if (typeof options[key] == 'string') {
+   options[key] = new RegExp(options[key]);
+  }
+ }
+ return options;
+};
+var tree = function (options) {
+ options = options || exam.options || getOptions();
+ var grep = options.grep;
+ var ignore = options.ignore;
+ var reporter = exam[options.reporter]
+ var stream = reporter.stream = options.stream;
+ var showProgress = reporter.init && !options.hideProgress;
+ if (showProgress) {
+  reporter.init(options);
+ }
+ var timers = require('timers');
+ var setTimeout = timers.setTimeout;
+ var clearTimeout = timers.clearTimeout;
+
+
+ var WAIT = 0;
+ var BEFORE = 1;
+ var RUN = 2;
+ var CHILDREN = 3;
+ var AFTER = 4;
+ var END = 5;
+ var phases = ['WAIT', 'BEFORE', 'RUN', 'CHILDREN', 'AFTER', 'END'];
+ var prepKeys = ['beforeEach', 'afterEach'];
+ var prep = [null, null];
+ var BEFORE_EACH = 0;
+ var AFTER_EACH = 1;
+ var asyncPattern = /^function.*?\([^\s\)]/;
+ var debug = function (message) {
+  stream.write(message + '\n');
+ };
+ if (options.parser && !process.env.running_under_istanbul) {
+  var parser = require(options.parser);
+  var parserExp = /(^[\s|\S]+?[\/\\](esprima|acorn)\.js:\d+:\d+\))[\s\S]*$/;
+  var Module = require('module');
+  var resolve = Module._resolveFilename;
+  var parsingPath = '';
+  Module._resolveFilename = function () {
+   var path = resolve.apply(Module, arguments);
+   if (path.indexOf('node_modules') < 0) {
+    parsingPath = path;
+   }
+   return path;
+  };
+  Module.wrap = function (script) {
+   if (parsingPath) {
+    var error;
+    try {
+     eval('var f=function(){' + script + '}'); }
+    catch (e) {
+     parser.parse(script);
+    }
+    parsingPath = '';
+   }
+   script = Module.wrapper[0] + script + Module.wrapper[1];
+   return script;
+  };
+ }
+ process.on('uncaughtException', function (error) {
+  fail(context, error);
+  next();
+ });
+ if (options.continueAsserts) {
+  Emitter.extend(is);
+  is.on('result', function (result) {
+   if (result instanceof Error) {
+    fail(context, result);
+   }
+   (context.results = context.results || []).push(result);
+  });
+ }
+ function stub() {
+  if (showProgress) {
+   reporter.stub();
+  }
+ }
+ function bubble(parent, key, value) {
+  while (parent) {
+   parent[key] = value;
+   parent = parent.parent;
+  }
+ }
+ function fail(context, e) {
+  if (!context.error) {
+   if (showProgress) {
+    reporter.fail();
+   }
+   root.bail = options.bail;
+   var stack = (e.stack || e.message || e.toString());
+   if (parsingPath) {
+    stack = stack.replace(parserExp, function (match, slice) {
+     var pos = parsingPath + ':';
+     if (e.loc) {
+      slice = slice.replace(/ ?\(\d+:\d+\)\n/, '\n');
+      pos += e.loc.line + ':' + (e.loc.column + 1);
+     }
+     else {
+      slice = slice.replace(/^Error: Line \d+/, 'SyntaxError');
+      pos += e.lineNumber + ':' + e.column;
+     }
+     return slice.replace(/\n/, '\n    at script (' + pos + ')\n');
+    });
+    parsingPath = '';
+   }
+   context.error = stack;
+  }
+ }
+ function Node(name, fn, only, skip) {
+  var node = this;
+  node.parent = suite;
+  node.name = name;
+  node.fn = fn;
+  node.phase = WAIT;
+  node.time = 0;
+  node.index = 0;
+  if (suite) {
+   node.timeLimit = suite.timeLimit;
+   node.hasOnly = false;
+   node.only = (suite.only && !skip) || only || false;
+   node.skip = suite.skip || skip || false;
+   suite.children.push(node);
+   if (only) {
+    bubble(suite, 'hasOnly', true);
+   }
+  }
+  else {
+   node.timeLimit = options.timeout;
+   node.skip = node.only = node.hasOnly = false;
+  }
+ }
+ Node.prototype.timeout = function (time) {
+  var node = this;
+  node.timeLimit = time;
+  clearTimeout(Node.timer);
+  if (time > 0) {
+   Node.timer = setTimeout(function () {
+    fail(context, new Error('Timeout of ' + time + 'ms exceeded.'));
+   }, time);
+  }
+ };
+ function next() {
+  var i, j, l, fns, fn, key, prepStack, n = 0;
+  while (true) {
+   if (!node) {
+    root.timeout(0);
+    return finishTree();
+   }
+   var name = node.name;
+   var phase = node.phase;
+   var isSuite = node.children ? true : false;
+   if (isSuite) {
+    suite = node;
+   }
+   switch (node.phase) {
+    case WAIT:
+     node.time = Date.now();
+     if (node.file && !root.started[node.file]) {
+      root.started[node.file] = node.time;
+     }
+     node.phase = BEFORE;
+     if (isSuite) {
+      suite = context = node;
+      fn = node.fn;
+      break;
+     }
+    case BEFORE:
+     fns = (isSuite ? node.before : prep[0]);
+     if (fns) break;
+    case RUN:
+     context = node;
+     node.index = 0;
+     if (isSuite) {
+      suite = node;
+      for (i = 0; i < 2; i++) {
+       key = prepKeys[i];
+       fns = node[key];
+       if (fns) {
+        prepStack = prep[i] = prep[i] || [];
+        if (typeof fns == 'function') {
+         prepStack.push(fns);
+         node[key] = 1;
+        }
+        else if (fns instanceof Array) {
+         for (j = 0, l = fns.length; j < l; j++) {
+          prepStack.push(fns[j]);
+         }
+         node[key] = fns.length;
+        }
+        fns = null;
+       }
+      }
+      node.phase = CHILDREN;
+     }
+     else {
+      fn = node.fn;
+      node.phase = AFTER;
+      break;
+     }
+    case CHILDREN:
+     var child = node.children[node.index++];
+     if (child) {
+      if (child.skip && !child.children) {
+       if (showProgress) {
+        reporter.skip();
+       }
+      }
+      else if (!child.fn && !child.children) {
+       if (showProgress) {
+        reporter.stub();
+       }
+      }
+      else {
+       node = child;
+      }
+      continue;
+     }
+     else {
+      for (i = 0; i < 2; i++) {
+       key = prepKeys[i];
+       l = node[key];
+       if (l) {
+        prepStack = prep[i];
+        prepStack.splice(prepStack.length - l, l);
+       }
+      }
+     }
+    case AFTER:
+     fns = (isSuite ? node.after : prep[1]);
+     if (fns) break;
+    case END:
+     var now = Date.now();
+     node.time = now - node.time;
+     if (node.file) {
+      root.times[node.file] = now - root.started[node.file];
+     }
+     if (showProgress && !isSuite) {
+      reporter.pass();
+     }
+     node.phase = END;
+     node = root.bail ? null : node.parent;
+     continue;
+   }
+   if (fns) {
+    if (typeof fns == 'function') {
+     fn = fns;
+     node.phase++;
+    }
+    else {
+     fn = fns[node.index++];
+    }
+    fns = null;
+   }
+   if (fn) {
+    if (asyncPattern.test(fn.toString())) {
+     var ctx = context;
+     var isDone = false;
+     ctx.timeout(ctx.timeLimit);
+     try {
+      fn.call(ctx, function () {
+       if (isDone) {
+        fail(ctx, new Error('Called `done` multiple times.'));
+       }
+       else {
+        isDone = true;
+        next();
+       }
+      });
+      return;
+     }
+     catch (e) {
+      fail(ctx, e);
+      isDone = true;
+     }
+    }
+    else {
+     (function (ctx) {
+      try {
+       fn.call(ctx);
+      }
+      catch (e) {
+       fail(ctx, e);
+      }
+     })(context);
+    }
+    fn = null;
+   }
+   else {
+    node.index = 0;
+    node.phase++;
+   }
+  }
+ }
+ global.describe = function (name, fn, only, skip) {
+  var node = new Node(name, fn, only, skip);
+  node.children = [];
+  if (root && (node.parent == root)) {
+   node.file = root.file;
+  }
+  return node;
+ };
+ global.it = function (name, fn, only, skip) {
+  var node = new Node(name, fn, only, skip);
+  return node;
+ };
+ [describe, it].forEach(function (me) {
+  me.only = function (name, fn) {
+   return me(name, fn, true, false);
+  };
+  me.skip = function (name, fn) {
+   return me(name, fn, false, true);
+  };
+  function filterFunction(object, key) {
+   var fn = object[key];
+   return (object[key] = function (name) {
+    var title = suite ? suite.title : '';
+    title += (title && (name[0] != '.') ? '' : ' ') + name;
+    var isMatch = !grep || !root || grep.test(title) || grep.test(root.file);
+    if (!ignore || !ignore.test(title)) {
+     var item = fn.apply(root, arguments);
+     item.title = title;
+     if (grep) {
+      item.isMatch = isMatch;
+      if (isMatch) {
+       bubble(suite, 'hasMatches', true);
+      }
+     }
+     return item;
+    }
+   });
+  }
+  if (grep || ignore) {
+   var isTest = (me == it);
+   var key = isTest ? 'it' : 'describe';
+   var fn = filterFunction(global, key);
+   fn.only = me.only;
+   fn.skip = me.skip;
+   filterFunction(fn, 'only');
+   filterFunction(fn, 'skip');
+  }
+ });
+ global.before = global.setup = function (fn) {
+  addSuiteFunction(suite, 'before', fn);
+ };
+ global.after = global.teardown = function (fn) {
+  addSuiteFunction(suite, 'after', fn);
+ };
+ global.beforeEach = function (fn) {
+  addSuiteFunction(suite, 'beforeEach', fn);
+ };
+ global.afterEach = function (fn) {
+  addSuiteFunction(suite, 'afterEach', fn);
+ };
+ function addSuiteFunction(suite, key, fn) {
+  process.assert(typeof fn == 'function', 'Exam `' + key + '` accepts a function as its only argument.');
+  var fns = suite[key];
+  if (!fns) {
+   suite[key] = fn;
+  }
+  else if (typeof fns == 'function') {
+   suite[key] = [fns, fn];
+  }
+  else if (fns instanceof Array) {
+   fns.push(fn);
+  }
+  else {
+   throw new Error('Attempted to create a preparation function after starting a suite.');
+  }
+ }
+ function grepNode(node) {
+  var children = node.children;
+  for (var i = 0, l = children.length; i < l; i++) {
+   var child = children[i];
+   if (child && !child.isMatch) {
+    if (child.hasMatches) {
+     grepNode(child);
+    }
+    else {
+     children.splice(i--, 1);
+    }
+   }
+  }
+ }
+ function finishTree() {
+  if (grep) {
+   grepNode(root);
+  }
+  root.options = options;
+  var data = reporter.finishTree(root, {
+   id: options.id,
+   times: root.times,
+   output: '',
+   passed: 0,
+   failed: 0,
+   hasOnly: root.hasOnly,
+   skipped: 0,
+   stubbed: 0
+  });
+  try {
+   process.send(data);
+   if (options.multiProcess) {
+    process.exit();
+   }
+  }
+  catch (e) {
+   stream.write(e.stack + '\n');
+  }
+ }
+ var root = describe('', function () {
+  root.started = {};
+  root.times = {};
+  options.files.forEach(function (file) {
+   var path = options.dir + '/' + file;
+   root.file = file;
+   try {
+    delete require.cache[path];
+    require(path);
+   }
+   catch (e) {
+    if (!grep || grep.test(path)) {
+     var suite = describe('File: ' + path, function () {}, false, false);
+     suite.grep = true;
+     fail(suite, e);
+    }
+   }
+  });
+  root.file = null;
+ });
+ var node = root;
+ var suite = root;
+ var context = root;
+ next();
+};
+var base, green, red, yellow, cyan, grey, white;
+var dot, ex, arrow, bullets;
+var cwd = process.cwd();
+var specialPattern = /(\.\?\*\+\(\)\[\]\{\}\\)/g;
+var escCwd = cwd.replace(specialPattern, '\\$1') + '/';
+var stackPattern = new RegExp(
+ '\n +at ([^\n]*)' + escCwd + '([^:\n]*?)([^\\/:]+):([0-9]+):([0-9]+)([^\n]*)',
+ 'g'
+);
+exam.console = {
+ init: function (options) {
+  var isWindows = (process.platform == 'win32');
+  var color = !options.noColors;
+  base = color ? '\u001b[39m' : '';
+  green = color ? '\u001b[32m' : '';
+  red = color ? '\u001b[31m' : '';
+  yellow = color ? '\u001b[33m' : '';
+  cyan = color ? '\u001b[36m' : '';
+  grey = color ? '\u001b[90m' : '';
+  white = color ? '\u001b[37m' : '';
+  dot = (isWindows ? '.' : '\u00B7');
+  ex = red + (isWindows ? '\u00D7' : '\u2716');
+  arrow = (isWindows ? '\u2192' : '\u279C') + ' ';
+  bullets = {
+   passed: green + (isWindows ? '\u221A' : '\u2714') + ' ' + grey,
+   failed: ex + ' ',
+   skipped: yellow + (isWindows ? '*' : '\u272D') + ' ',
+   stubbed: cyan + arrow
+  };
+ },
+ start: function (options) {
+  if (!base) {
+   this.init(options);
+  }
+  if (!options.hideAscii) {
+   var version = '0.1.1';
+   var art = [
+    yellow + '  ' + grey + '  _',
+    yellow + ' __' + grey + '(O)' + yellow + '__ ' + grey + '   _____           v' + version,
+    yellow + '|' + white + '#' + grey + 'A***A' + white + '#' + yellow + '|' + grey + '  | ____)_  __ _ _ _ _ _',
+    yellow + '|' + white + '#######' + yellow + '|' + grey + '  |  _) \\ \\/ / _` | ` ` \\',
+    yellow + '|' + white + '#######' + yellow + '|' + grey + '  | |___ }  { (_| | | | |',
+    yellow + '|' + white + '#######' + yellow + '|' + grey + '  |_____/_/\\_\\__,_|_|_|_|',
+    yellow + ' """""""',
+    base
+   ];
+   this.stream.write(art.join('\n'));
+  }
+ },
+ skip: function () {
+ this.stream.write(yellow + dot + base);
+ },
+ stub: function () {
+  this.stream.write(cyan + dot + base);
+ },
+ pass: function () {
+  this.stream.write(green + dot + base);
+ },
+ fail: function () {
+  this.stream.write(ex + base);
+ },
+ timestamp: function () {
+  var date = new Date();
+  this.stream.write(grey + date.toISOString().replace(/[A-Z]/g, ' ') + base + '\n\n');
+ },
+ finishTree: function (run, data) {
+  var options = run.options;
+  if (!base) {
+   this.init(options);
+  }
+  var hasOnly = data.hasOnly;
+  var dive = function (node, indent) {
+   var name = node.name;
+   var stub = !node.fn;
+   var skip = node.skip || (hasOnly && !node.only && !node.hasOnly);
+   var hide = hasOnly && skip;
+   var error = (stub || skip) ? '' : node.error;
+   var children = node.children;
+   var color = error ? red : skip ? yellow : stub ? cyan : children ? base : grey;
+   if (error) {
+    var results = node.results;
+    var parent = node.parent;
+    var title = name;
+    while (parent && parent.name) {
+     title = parent.name + (name[0] == '.' ? '' : ' ') + name;
+     parent = parent.parent;
+    }
+    (data.errors = data.errors || []).push(title + '\n' + formatStack(error));
+   }
+   if (name) {
+    if (children) {
+     if (!hide) {
+      data.output += indent + base + name;
+     }
+    }
+    else {
+     var key = error ? 'failed' : skip ? 'skipped' : stub ? 'stubbed' : 'passed';
+     data[key]++;
+     if (!hide) {
+      var time = node.time;
+      data.output += indent + bullets[key] + name;
+      if (key == 'passed' && (time >= options.slow)) {
+       data.output += (time >= options.verySlow ? red : yellow) + ' (' + time + 'ms)';
+      }
+      if (error && results) {
+       results.forEach(function (result) {
+        if (result.message) {
+         data.output += indent + '  ' + red + arrow + result.message;
+        }
+        else {
+         data.output += indent + '  ' + green + arrow + result;
+        }
+       });
+      }
+     }
+    }
+   }
+   if (children) {
+    indent = (indent ? (indent + '  ').replace(/\n\n/, '\n') : '\n\n');
+    children.forEach(function (child) {
+     dive(child, indent);
+    });
+   }
+  };
+  dive(run);
+  return data;
+ },
+ finishExam: function (data) {
+  var output = data.outputs.join('');
+  var errors = data.errors;
+  if (errors) {
+   errors.forEach(function (error, index) {
+    output += '\n\n' + base + (1 + index) + grey + ') ' + base + error;
+   });
+  }
+  var time = grey + '(' + data.time + 'ms)' + base;
+  output += '\n\n' + green + data.passed + ' passed ' + time;
+  if (data.failed) {
+   output += '\n' + red + data.failed + ' failed';
+  }
+  if (data.skipped) {
+   output += '\n' + yellow + data.skipped + ' skipped';
+  }
+  if (data.stubbed) {
+   output += '\n' + cyan + data.stubbed + ' stubbed';
+  }
+  output += base + '\n\n';
+  this.stream.write(output);
+  return output;
+ }
+};
+function formatStack(stack) {
+ var linesBefore = 8;
+ stack = stack.replace(/(\n + at )/, grey + '$1');
+ stack = stack.replace(
+  stackPattern,
+  function (match, start, path, file, line, char, end) {
+   var message = '\n    at ' + (start || '(') + cyan + './' + path +
+    yellow + file + grey + ':' +
+    base + line + grey + ':' +
+    green + char + grey + (end || ')');
+   if (linesBefore >= 1) {
+    var lineNumber = line * 1; var lines = '';
+    try {
+     lines += fs.readFileSync(cwd + '/' + path + file);
+    }
+    catch (e) {
+    }
+    lines = lines.split('\n');
+    message += grey;
+    start = Math.max(1, lineNumber - linesBefore);
+    end = Math.min(lines.length, lineNumber + Math.round(linesBefore / 2));
+    var numberLength = ('' + end).length;
+    for (var i = start; i <= end; i++) {
+     line = lines[i - 1];
+     var indent = '         ';
+     var pipe = '| ';
+     if (i == lineNumber) {
+      char--;
+      line = line.substr(0, char) + green + line.substr(char) + grey;
+      indent = base + '       ' + arrow;
+      pipe = grey + pipe + base;
+     }
+     var n = '' + i;
+     n = Array(numberLength - n.length + 1).join(' ') + n;
+     message += '\n' + indent + n + pipe + line.replace('\t', '  ');
+    }
+    linesBefore /= 2;
+   }
+   return message;
+  }
+ );
+ return '   ' + red + stack + base;
+}
+exam.counts = {
+ finishTree: function (run, data) {
+  var hasOnly = data.hasOnly;
+  var dive = function (node) {
+   if (node.children) {
+    node.children.forEach(function (child) {
+     dive(child);
+    });
+   }
+   else {
+    var stub = !node.fn;
+    var skip = node.skip || (hasOnly && !node.only && !node.hasOnly);
+    var error = (stub || skip) ? '' : node.error;
+    var key = error ? 'failed' : skip ? 'skipped' : stub ? 'stubbed' : 'passed';
+    data[key]++;
+   }
+  };
+  dive(run);
+  return data;
+ },
+ finishExam: function (data) {
+  data = {
+   passed: data.passed,
+   failed: data.failed,
+   skipped: data.skipped,
+   stubbed: data.stubbed
+  };
+  data.total = data.passed + data.failed + data.skipped + data.stubbed;
+  var json = JSON.stringify(data);
+  this.stream.write(json + '\n');
+ }
+};
+exam.tap = {
+ finishTree: function (run, data) {
+  data.output = [];
+  var dive = function (node) {
+   if (node.name) {
+    var error = node.error;
+    var shouldShow = error || !node.children;
+    if (shouldShow) {
+     data[error ? 'failed' : 'passed']++;
+     var name = node.name;
+     var suite = node.parent;
+     while (suite && suite.name) {
+      name = suite.name + ' ' + name;
+      suite = suite.parent;
+     }
+     name = name.replace(/\n/g, ' ');
+     data.output.push(name + (error ? '\n' + error : ''));
+    }
+   }
+   if (node.children) {
+    node.children.forEach(dive);
+   }
+  };
+  dive(run);
+  return data;
+ },
+ finishExam: function (data) {
+  var stream = this.stream;
+  var lines = [];
+  data.outputs.forEach(function (output) {
+   output.forEach(function (line) {
+    lines.push(line);
+   });
+  });
+  stream.write(1 + '...' + lines.length + '\n');
+  lines.forEach(function (line, index) {
+   var text = line.replace(/\n/g, '\n  ');
+   var prefix = text.length > line.length ? 'not ok ' : 'ok ';
+   stream.write(prefix + (index + 1) + ' ' + text + '\n');
+  });
+  stream.write('# tests ' + lines.length + '\n');
+  stream.write('# pass ' + data.passed + '\n');
+  stream.write('# fail ' + data.failed + '\n');
+ }
+};
+var time;
+var replacements = {
+ '"': '&quot;',
+ '<': '&lt;',
+ '>': '&gt;',
+ '&': '&amp;'
+};
+var esc = function (text) {
+ return text.replace(/[<&>"]/g, function (match) {
+  return replacements[match];
+ });
+};
+exam.xunit = {
+ start: function () {
+  time = new Date();
+ },
+ finishTree: function (run, data) {
+  var dive = function (node) {
+   if (node.name) {
+    var error = node.error;
+    var shouldShow = error || !node.children;
+    if (shouldShow) {
+     data[error ? 'failed' : 'passed']++;
+     var name;
+     var suite = node.parent;
+     while (suite && suite.name) {
+      name = suite.name + (name ? ' ' + name : '');
+      suite = suite.parent;
+     }
+     var common = 'classname="' + esc(name) + '" ' +
+      'name="' + esc(node.name) + '" ' +
+      'time="' + (node.time / 1e3) + '"';
+     data.output += '<testcase ' + common;
+     if (error) {
+      var message = error.replace(/\n[\S\s]+/, '');
+      data.output += ' message="' + esc(message) + '">' +
+       '<failure ' + common + ' ' +
+        'message="' + esc(message) + '">' +
+        '<![CDATA[' + esc(error) + ']]>' +
+        '</failure></testcase>\n';
+     }
+     else {
+      data.output += '/>\n';
+     }
+    }
+   }
+   if (node.children) {
+    node.children.forEach(dive);
+   }
+  };
+  dive(run);
+  return data;
+ },
+ finishExam: function (data) {
+  var stream = this.stream;
+  stream.write(
+   '<?xml version="1.0" encoding="UTF-8"?>\n' +
+   '<testsuite name="Exam" ' +
+    'tests="' + (data.passed + data.failed) + '" ' +
+    'failures="' + data.failed + '" ' +
+    'errors="' + data.failed + '" ' +
+    'skipped="0" ' +
+    'timestamp="' + (new Date()).toUTCString() + '" ' +
+    'time="' + (data.time / 1e3) + '">\n');
+  stream.write(data.outputs.join(''));
+  stream.write('</testsuite>\n');
+ }
+};

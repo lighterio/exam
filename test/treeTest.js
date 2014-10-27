@@ -1,6 +1,6 @@
 var called = {};
 
-describe('run', function () {
+describe('tree', function () {
 
   describe('timeout', function () {
     this.timeout(10);
@@ -46,12 +46,12 @@ describe('run', function () {
 
   describe('after', function () {
     afterEach(function (done) {
-      called.afterSync = true;
+      called.afterAsync = true;
       done();
     });
     it('works asynchronously', function () {
       process.on('exam:finished:EXAM', function () {
-        //is.true(called.afterAsync);
+        is.true(called.afterAsync);
       });
     });
   });
@@ -88,12 +88,12 @@ describe('run', function () {
 
   describe('afterEach', function () {
     afterEach(function (done) {
-      called.afterEachSync = true;
+      called.afterEachAsync = true;
       done();
     });
     it('works asynchronously', function () {
       process.on('exam:finished:EXAM', function () {
-        //is.true(called.afterEachAsync);
+        is.true(called.afterEachAsync);
       });
     });
   });

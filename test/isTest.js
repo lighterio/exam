@@ -25,44 +25,9 @@ describe('is', function () {
     is.function(is);
   });
 
-  it('.enableContinuation toggles continuation', function () {
-    is.enableContinuation();
-    is.in(is.pass.toString(), '.push');
-    is.enableContinuation(true);
-    is.in(is.pass.toString(), '.push');
-    is.enableContinuation(false);
-    is.notIn(is.pass.toString(), '.push');
-    is.enableContinuation(0);
-    is.notIn(is.pass.toString(), '.push');
-  });
-
-  it('.setCurrentTest sets the test', function () {
-    var test = {results: []};
-    unmock(is);
-    is.enableContinuation();
-    is.setCurrentTest(test);
-    is.pass();
-    is(test.results.length, 1);
-    is.setCurrentTest(null);
-    is.pass();
-  });
-
-  it('.pass does nothing without a currentTest', function () {
-    unmock(is);
-    is.setCurrentTest(null);
-    is.pass();
-  });
-
-  it('.fail throws errors when continuation is not enabled', function () {
-    unmock(is);
-    is.enableContinuation(false);
-    is.pass();
-  });
-
   it('.fail throws an error', function (done) {
     unmock(is);
     try {
-      is.setCurrentTest(null);
       is.fail(['something', 'is not', 'working'], is.fail, 'something', 'working', 'is not');
     }
     catch (e) {
@@ -71,17 +36,19 @@ describe('is', function () {
     }
   });
 
-  it('.fail pushes an error when "exam" is the runner', function () {
+  it('.fail emits an error when `is` is an emitter', function (done) {
     unmock(is);
-    var test = {results: []};
-    is.setCurrentTest(test);
+    mock(is, {emit: function (event, result) {
+      assert.strictEqual(event, 'result');
+      assert(result instanceof Error);
+      done();
+    }});
     is.fail();
-    is(test.results.length, 1);
   });
 
-  it('.deep works in all cases', function () {
+  it('.stringify works in all cases', function () {
     unmock(is);
-    is(is.deep({n: null}), '{n:null}');
+    is(is.stringify({n: null}), '{n:null}');
     // Try classes and max depth (stuff that's not in other tests).
     function Thing() {
       this.what = 'what?';
@@ -91,11 +58,11 @@ describe('is', function () {
     };
     var thing = new Thing();
     var hi = Thing.prototype.hi.toString();
-    is(is.deep(Thing), Thing.toString());
-    is(is.deep(thing), '{what:\"what?\",hi:' + Thing.prototype.hi.toString() + '}');
-    is(is.deep({for:1}), '{for:1}');
-    is(is.deep([[[[[[[[[[[1]]]]]]]]]]]), '[[[[[[[[[[[Array]]]]]]]]]]]');
-    is(is.deep([[[[[[[[[[{}]]]]]]]]]]), '[[[[[[[[[[[Object]]]]]]]]]]]');
+    is(is.stringify(Thing), Thing.toString());
+    is(is.stringify(thing), '{what:\"what?\",hi:' + Thing.prototype.hi.toString() + '}');
+    is(is.stringify({for:1}), '{for:1}');
+    is(is.stringify([[[[[[[[[[[1]]]]]]]]]]]), '[[[[[[[[[[[Array]]]]]]]]]]]');
+    is(is.stringify([[[[[[[[[[{}]]]]]]]]]]), '[[[[[[[[[[[Object]]]]]]]]]]]');
   });
 
   it('.is asserts strict equality', function () {
@@ -677,7 +644,7 @@ describe('is', function () {
     is.lengthOf(s, 0); fail();
   });
 
-  it('.notLengthOf asserts a value is not an array or doesn\'t have a given length', function () {
+  it('.notLengthOf asserts a value is not an array or is not a given length', function () {
     is.notLengthOf(a, 0); fail();
     is.notLengthOf(a, 1); pass();
     is.notLengthOf(o, 0); pass();

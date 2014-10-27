@@ -9,19 +9,21 @@
 
 ## TL;DR
 
-Exam is a JavaScript test runner that can distribute your tests across CPUs
-because your time is important. It comes with a terse assertion library and
-mocking library, but you can bring your own if you like.
+Exam is a JavaScript test runner, designed to be fast and easy.
 
-### Getting started
+### Powerful features
+* A terse assertion library called `is` (or use your own).
+* A fast mocking library called `mock` (or use your own).
+* Tests can be distributed across CPUs for speed.
 
-Make your test directory:
+### Quick Start
+
+Install `exam`:
+```bash
+sudo npm install -g exam
 ```
-cd myapp
-mkdir test
-```
 
-Write some tests in `myapp/test`:
+Write some tests in `YourApp/test`:
 ```js
 var a = [1, 2, 3];
 describe('Array.indexOf()', function () {
@@ -34,11 +36,6 @@ describe('Array.indexOf()', function () {
     is(a.indexOf(2), 1);
   });
 });
-```
-
-Install `exam`:
-```bash
-sudo npm install -g exam
 ```
 
 Run tests:
@@ -54,8 +51,8 @@ Exam exposes global functions which you can use in your tests.
 ### describe(title, fn)
 Runs `fn` as a suite of tests.
 
-### it(does, fn)
-Runs `fn` to test what something does.
+### it(name, fn)
+Runs `fn` as a test for the named functionality.
 
 ### is(actual, expected)
 Asserts equality.
@@ -292,7 +289,8 @@ a string or regular expression, or 3) `search` is not found in `value`.
 Asserts that the value (string, array, etc.) has the specified length.
 
 #### is.notLengthOf(value, length)
-Asserts that the value (string, array, etc.) does not have the specified length.
+Asserts that the value (string, array, etc.) has no length, or a different
+length than specified.
 
 #### is.arrayOf(value, expectedTypeOrClass)
 Asserts that the value is an array of the specified type or an array of
@@ -598,6 +596,7 @@ mock({
 
 Restores the properties which belonged to the object prior to being mocked.
 
+
 ## Running exam
 
 Exam can be run using the command line interface, or by requiring the module.
@@ -655,18 +654,22 @@ Whether to spawn child processes, creating a cluster of test runners.
 
 
 ## Acknowledgements
+
+We would like to thank all of the amazing people who use, support,
+promote, enhance, document, patch, and submit comments & issues.
+Exam couldn't exist without you.
+
 Exam is heavily influenced by [mocha](https://www.npmjs.org/package/mocha), and
 it uses [mock-fs](https://www.npmjs.org/package/mock-fs), so thanks are due to
 [TJ Holowaychuk](https://github.com/visionmedia),
 [Tim Schaub](https://github.com/tschaub), and all of their contributors.
 
-Additional thanks go to [TUNE](http://www.tune.com) for employing and
-supporting core [Lighter.io](http://lighter.io) module contributors.
+Additionally, huge thanks go to [TUNE](http://www.tune.com) for employing
+and supporting [Exam](http://lighter.io/exam) project maintainers,
+and for being an epically awesome place to work (and play).
 
 
-## License
-
-The MIT License (MIT)
+## MIT License
 
 Copyright (c) 2014 Sam Eubank
 
@@ -690,16 +693,19 @@ SOFTWARE.
 
 
 ## How to Contribute
+
 We welcome contributions from the community and are happy to have them.
 Please follow this guide when logging issues or making code changes.
 
 ### Logging Issues
+
 All issues should be created using the
 [new issue form](https://github.com/lighterio/exam/issues/new).
 Please describe the issue including steps to reproduce. Also, make sure
 to indicate the version that has the issue.
 
 ### Changing Code
+
 Code changes are welcome and encouraged! Please follow our process:
 
 1. Fork the repository on GitHub.
@@ -712,3 +718,29 @@ Code changes are welcome and encouraged! Please follow our process:
    * Run `npm run report` to open the coverage report you generated.
 4. [Pull requests](http://help.github.com/send-pull-requests/) should be made
    to the [master branch](https://github.com/lighterio/exam/tree/master).
+
+### Contributor Code of Conduct
+
+As contributors and maintainers of Exam, we pledge to respect all
+people who contribute through reporting issues, posting feature requests,
+updating documentation, submitting pull requests or patches, and other
+activities.
+
+If any participant in this project has issues or takes exception with a
+contribution, they are obligated to provide constructive feedback and never
+resort to personal attacks, trolling, public or private harassment, insults, or
+other unprofessional conduct.
+
+Project maintainers have the right and responsibility to remove, edit, or
+reject comments, commits, code, edits, issues, and other contributions
+that are not aligned with this Code of Conduct. Project maintainers who do
+not follow the Code of Conduct may be removed from the project team.
+
+Instances of abusive, harassing, or otherwise unacceptable behavior may be
+reported by opening an issue or contacting one or more of the project
+maintainers.
+
+We promise to extend courtesy and respect to everyone involved in this project
+regardless of gender, gender identity, sexual orientation, ability or
+disability, ethnicity, religion, age, location, native language, or level of
+experience.
