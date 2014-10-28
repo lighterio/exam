@@ -14,10 +14,6 @@ var exam = module.exports = function (options) {
  var manifestPath = cacheDir + '/manifest.json';
  var reporter = exam[options.reporter]
  var stream = reporter.stream = options.stream;
- process.on('SIGINT', function () {
-  stream.write('\n\n');
-  process.kill();
- });
  start();
  readManifest();
  if (options.watch) {
@@ -101,13 +97,13 @@ var exam = module.exports = function (options) {
    start();
   }
  }
- function initResults() {
+ function initResults(startTime) {
   data = {
-   started: Date.now(),
+   started: startTime || Date.now(),
    outputs: [],
+   hasOnly: false,
    passed: 0,
    failed: 0,
-   hasOnly: false,
    skipped: 0,
    stubbed: 0,
    times: {}
@@ -192,96 +188,107 @@ var exam = module.exports = function (options) {
   }
  }
  function assignTests() {
-  if (!testFiles.length) {
-   finish();
-   return;
-  }
-  var fork, cpus;
-  if (options.multiProcess) {
-   cpus = require('os').cpus();
-  }
-  else {
-   cpus = [1];
-   process.send = receiveResult;
-  }
-  if (options.multiProcess || options.debug) {
-   fork = require('child_process').fork;
-  }
-  else {
-   fork = function () {
-    tree(options);
-    return {on: function () {}};
-   };
-  }
-  var forkCount = Math.min(testFiles.length, cpus.length);
-  var assignments = [];
-  for (var i = 0; i < forkCount; i++) {
-   assignments[i] = [];
-  }
-  var fileTimes = {};
-  if (!manifest.files || (manifest.files instanceof Array)) {
-   manifest.files = {};
-  }
-  testFiles.forEach(function (path) {
-   var entry = manifest.files[path] || 0;
-   var time = entry.avg1 || 0;
-   fileTimes[path] = time || 0;
-  });
-  testFiles.sort(function (a, b) {
-   return fileTimes[a] > fileTimes[b] ? -1 : 1;
-  });
-  var reverse = true;
-  testFiles.forEach(function (path, index) {
-   var mod = index % forkCount;
-   if (!mod) reverse = !reverse;
-   index = reverse ? forkCount - 1 - mod : mod;
-   assignments[index].push(path);
-  });
-  waits = forkCount;
-  testFiles = [];
-  var args = process.argv.slice(2);
-  var argCount = args.length;
-  assignments.forEach(function (testFiles, index) {
+  if (!options.multiProcess) {
+   waits = 1;
    options.files = testFiles;
+   options.finish = receiveResult;
+   tree(options);
+  }
+  else {
+   var spawn = require('child_process').spawn;
+   var cpus = require('os').cpus();
+   var spawnCount = Math.min(testFiles.length, cpus.length);
+   var assignments = [];
+   for (var i = 0; i < spawnCount; i++) {
+    assignments[i] = [];
+   }
+   var fileTimes = {};
+   if (!manifest.files || (manifest.files instanceof Array)) {
+    manifest.files = {};
+   }
+   testFiles.forEach(function (path) {
+    var entry = manifest.files[path] || 0;
+    var time = entry.avg1 || 0;
+    fileTimes[path] = time || 0;
+   });
+   testFiles.sort(function (a, b) {
+    return fileTimes[a] > fileTimes[b] ? -1 : 1;
+   });
+   var reverse = true;
+   testFiles.forEach(function (path, index) {
+    var mod = index % spawnCount;
+    if (!mod) reverse = !reverse;
+    index = reverse ? spawnCount - 1 - mod : mod;
+    assignments[index].push(path);
+   });
+   waits = spawnCount;
+   testFiles = [];
+   var execPath = __filename;
+   var args = process.argv.slice(2);
+   if (options.debug) {
+    execPath = process.execPath;
+    args.unshift(__filename);
+    args.unshift('--debug');
+   }
    args.push('--files');
-   args.push(testFiles.join(','));
-   var worker = fork(__filename, args);
-   worker.on('message', receiveResult);
-   args.length = argCount;
-  });
+   assignments.forEach(function (testFiles, index) {
+    args.push(testFiles.join(','));
+    var child = spawn(execPath, args);
+    var data = '';
+    child.stderr.on('data', function (chunk) {
+     data += chunk;
+     data = data.replace(/<@%(.*?)%@>/g, function (match, json) {
+      try {
+       var result = JSON.parse(json);
+       if (typeof result == 'string') {
+        reporter[result]();
+       }
+       else {
+        receiveResult(result);
+       }
+      }
+      catch (e) {
+      }
+      return '';
+     });
+    });
+    args.pop();
+   });
+  }
+ }
+ function total(o) {
+  return o.skipped + o.passed + o.failed + o.stubbed;
  }
  function receiveResult(result) {
-  if (result.id == options.id) {
+  if (data.hasOnly && !result.hasOnly) {
+   data.skipped += total(result);
+  }
+  else {
+   if (result.hasOnly && !data.hasOnly) {
+    var skip = total(data);
+    initResults(data.started);
+    data.skipped = skip;
+   }
+   if (result.output) {
+    data.outputs.push(result.output);
+   }
    data.skipped += result.skipped;
-   if (data.hasOnly && !result.hasOnly) {
-    data.skipped += result.passed + result.failed + result.stubbed;
+   data.passed += result.passed;
+   data.failed += result.failed;
+   data.stubbed += result.stubbed;
+   if (result.errors) {
+    result.errors.forEach(function (error) {
+     (data.errors = data.errors || []).push(error);
+    });
    }
-   else {
-    if (result.hasOnly && !data.hasOnly) {
-     initResults();
-     data.hasOnly = true;
-     data.skipped += data.passed + data.failed + data.stubbed;
-    }
-    if (result.output) {
-     data.outputs.push(result.output);
-    }
-    data.passed += result.passed;
-    data.failed += result.failed;
-    data.stubbed += result.stubbed;
-    if (result.errors) {
-     result.errors.forEach(function (error) {
-      (data.errors = data.errors || []).push(error);
-     });
-    }
-   }
-   var times = result.times;
-   for (var path in times) {
-    data.times[path] = times[path];
-   }
-   if (!--waits) {
-    data.time = Date.now() - data.started;
-    finish();
-   }
+  }
+  var times = result.times;
+  for (var path in times) {
+   data.times[path] = times[path];
+  }
+  if (!--waits) {
+   data.time = Date.now() - data.started;
+   finish();
   }
  }
  function finish() {
@@ -339,7 +346,7 @@ var exam = module.exports = function (options) {
   }
  }
 };
-exam.version = '0.1.2';
+exam.version = '0.1.3';
 if ((process.mainModule == module) && !exam.options) {
  var examOptions = exam.options = exam.options || getOptions();
  process.nextTick(function () {
@@ -421,12 +428,12 @@ function mk(p, m, f, d) {
    f(null, d);
   }
   else if (e.code == 'ENOENT') {
-   mkdirp(path.dirname(p), m, function (e, d) {
+   mk(path.dirname(p), m, function (e, d) {
     if (e) {
      f(e, d);
     }
     else {
-     mkdirp(p, m, f, d);
+     mk(p, m, f, d);
     }
    });
   }
@@ -840,7 +847,14 @@ function deep(data, stack) {
  }
  else {
   if (typeof data == 'string') {
-   data = '"' + data.replace(/"/g, '\\"') + '"';
+   data = '"' + data.replace(/[\\"\n\r\t]/g, function (match) {
+    return '\\' + (
+     match == '\n' ? 'n' :
+     match == '\r' ? 'r' :
+     match == '\t' ? 't' :
+     match
+    );
+   }) + '"';
   }
   else {
    data = '' + data;
@@ -903,6 +917,7 @@ global.unmock = function unmock(object, keys) {
    delete object._EXAM_MOCKED_ORIGINALS;
   }
  }
+ return object;
 };
 function decorateFn(fn, args) {
  fn.returns = function (value) {
@@ -914,7 +929,7 @@ function decorateFn(fn, args) {
 function finishFn(fn) {
  return fn._returns;
 }
-mock.ignore = function () {
+mock.fn = mock.ignore = function () {
  var fn = function () {
   return finishFn(fn);
  };
@@ -988,6 +1003,34 @@ unmock.fs = function () {
   mockFs = null;
  }
 };
+mock.cpu = function (options) {
+ options = options || {};
+ if (typeof options.cpus == 'number') {
+  options.cpus = unmock(require('os')).cpus().slice(0, options.cpus);
+ }
+ if (typeof options.hostname == 'string') {
+  options.hostname = mock.fn().returns(options.hostname);
+ }
+ if (options.fork === false) {
+  options.fork = mock.fn();
+ }
+ ['os', 'cluster'].forEach(function (lib) {
+  lib = require(lib);
+  unmock(lib);
+  var mocks = {};
+  for (var key in options) {
+   if (typeof lib[key] == typeof options[key]) {
+    mocks[key] = options[key];
+   }
+  }
+  mock(lib, mocks);
+ });
+};
+unmock.cpu = function () {
+ ['os', 'cluster'].forEach(function (lib) {
+  unmock(require(lib));
+ });
+};
 var timers = require('timers');
 timers.Date = Date;
 mock.time = function (value) {
@@ -995,6 +1038,10 @@ mock.time = function (value) {
  mock.time._CURRENT_TIME = date.getTime();
  mock(timers.Date, {now: MockDate.now});
  global.Date = MockDate;
+ global.setTimeout = getScheduler(false);
+ global.setInterval = getScheduler(true);
+ global.clearTimeout = getUnscheduler();
+ global.clearInterval = getUnscheduler();
  return mock.time;
 };
 function MockDate(value) {
@@ -1068,12 +1115,6 @@ function realNow() {
 }
 var schedules = [];
 schedules.id = 0;
-schedules.sort = function () {
- Array.prototype.sort.call(schedules, function (a, b) {
-  return b.time - a.time;
- });
- console.log(schedules);
-};
 function getScheduler(isInterval) {
  return function (fn, time) {
   schedules.push({
@@ -1086,33 +1127,46 @@ function getScheduler(isInterval) {
 }
 function getUnscheduler() {
  return function (id) {
-  for (var i = schedules.length - 1; i >= 0; i--) {
+  for (var i = 0, l = schedules.length; i < l; i++) {
    var schedule = schedules[i];
    if (schedule.id == id) {
-    delete schedules[i];
+    schedules.splice(i, 1);
     break;
    }
   }
  };
 }
 function runSchedules() {
- var i = 0;
+ schedules.sort(function (a, b) {
+  return b.time - a.time;
+ });
+ var minNewTime = Number.MAX_VALUE;
+ var i = schedules.length - 1;
  var schedule = schedules[i];
  while (schedule && (schedule.time <= mock.time._CURRENT_TIME)) {
   schedule.fn();
-  if (schedule.interval === false) {
-   delete schedule[i];
+  if (!schedule.interval) {
+   schedules.splice(i, 1);
   }
   else {
    schedule.time += schedule.interval;
+   minNewTime = Math.min(minNewTime, schedule.time);
   }
-  schedule = schedules[++i] || null;
+  schedule = schedules[--i];
+ }
+ if (minNewTime <= mock.time._CURRENT_TIME) {
+  process.nextTick(runSchedules);
  }
 }
 unmock.time = function () {
  delete mock.time._CURRENT_TIME;
  delete mock.time._SPEED;
  global.Date = timers.Date;
+ global.setTimeout = timers.setTimeout;
+ global.setInterval = timers.setInterval;
+ global.clearTimeout = timers.clearTimeout;
+ global.clearInterval = timers.clearInterval;
+ schedules.length = 0;
  unmock(timers.Date, 'now');
 };
 ['directory', 'file', 'symlink'].forEach(function (method) {
@@ -1134,7 +1188,7 @@ function getOptions(options) {
   fsWatchLimit: 20,
   watchInterval: 1e2,
   watchLimit: 1e3,
-  stream: process.stdout
+  stream: process.stderr
  };
  if (options) {
   for (var name in defaults) {
@@ -1198,8 +1252,8 @@ function getOptions(options) {
   regexpify('grep');
   regexpify('ignore');
   regexpify('ignoreWatch');
-  if (options.watch) {
-   options.multipProcess = true;
+  if (options.watch || options.debug) {
+   options.multiProcess = true;
   }
  };
  options.optionify();
@@ -1268,9 +1322,6 @@ var tree = function (options) {
  var BEFORE_EACH = 0;
  var AFTER_EACH = 1;
  var asyncPattern = /^function.*?\([^\s\)]/;
- var debug = function (message) {
-  stream.write(message + '\n');
- };
  if (options.parser && !process.env.running_under_istanbul) {
   var parser = require(options.parser);
   var parserExp = /(^[\s|\S]+?[\/\\](esprima|acorn)\.js:\d+:\d+\))[\s\S]*$/;
@@ -1302,6 +1353,10 @@ var tree = function (options) {
   fail(context, error);
   next();
  });
+ process.on('SIGINT', function () {
+  stream.write('\n\n');
+  process.exit();
+ });
  if (options.continueAsserts) {
   Emitter.extend(is);
   is.on('result', function (result) {
@@ -1323,12 +1378,14 @@ var tree = function (options) {
   }
  }
  function fail(context, e) {
-  if (!context.error) {
-   if (showProgress) {
-    reporter.fail();
-   }
+  if (e && !context.error) {
    root.bail = options.bail;
-   var stack = (e.stack || e.message || e.toString());
+   var stack = e.stack;
+   if (stack == e.toString()) {
+    e = new Error(e);
+    Error.captureStackTrace(e, arguments.callee);
+    stack = e.stack;
+   }
    if (parsingPath) {
     stack = stack.replace(parserExp, function (match, slice) {
      var pos = parsingPath + ':';
@@ -1345,6 +1402,9 @@ var tree = function (options) {
     parsingPath = '';
    }
    context.error = stack;
+   if (showProgress) {
+    reporter.fail(stack);
+   }
   }
  }
  function Node(name, fn, only, skip) {
@@ -1353,7 +1413,7 @@ var tree = function (options) {
   node.name = name;
   node.fn = fn;
   node.phase = WAIT;
-  node.time = 0;
+  node.time = -1;
   node.index = 0;
   if (suite) {
    node.timeLimit = suite.timeLimit;
@@ -1442,14 +1502,12 @@ var tree = function (options) {
     case CHILDREN:
      var child = node.children[node.index++];
      if (child) {
-      if (child.skip && !child.children) {
-       if (showProgress) {
-        reporter.skip();
-       }
+      if (child.children) {
+       node = child;
       }
-      else if (!child.fn && !child.children) {
+      else if (child.skip || !child.fn || (root.hasOnly && !child.only)) {
        if (showProgress) {
-        reporter.stub();
+        reporter[child.fn ? 'skip' : 'stub']();
        }
       }
       else {
@@ -1470,16 +1528,18 @@ var tree = function (options) {
     case AFTER:
      fns = (isSuite ? node.after : prep[1]);
      if (fns) break;
+     node.phase = END;
     case END:
      var now = Date.now();
      node.time = now - node.time;
      if (node.file) {
       root.times[node.file] = now - root.started[node.file];
      }
-     if (showProgress && !isSuite) {
-      reporter.pass();
+     if (!isSuite) {
+      if (showProgress) {
+       reporter.pass();
+      }
      }
-     node.phase = END;
      node = root.bail ? null : node.parent;
      continue;
    }
@@ -1641,14 +1701,11 @@ var tree = function (options) {
    skipped: 0,
    stubbed: 0
   });
-  try {
-   process.send(data);
-   if (options.multiProcess && !options.watch) {
-    process.exit();
-   }
+  if (options.finish) {
+   options.finish(data);
   }
-  catch (e) {
-   stream.write(e.stack + '\n');
+  else {
+   process.stderr.write('<@%' + JSON.stringify(data) + '%@>');
   }
  }
  var root = describe('', function () {
@@ -1678,13 +1735,7 @@ var tree = function (options) {
 };
 var base, green, red, yellow, cyan, grey, white;
 var dot, ex, arrow, bullets;
-var cwd = process.cwd();
-var specialPattern = /(\.\?\*\+\(\)\[\]\{\}\\)/g;
-var escCwd = cwd.replace(specialPattern, '\\$1') + '/';
-var stackPattern = new RegExp(
- '\n +at ([^\n]*)' + escCwd + '([^:\n]*?)([^\\/:]+):([0-9]+):([0-9]+)([^\n]*)',
- 'g'
-);
+var bold, normal;
 exam.console = {
  init: function (options) {
   var isWindows = (process.platform == 'win32');
@@ -1696,6 +1747,8 @@ exam.console = {
   cyan = color ? '\u001b[36m' : '';
   grey = color ? '\u001b[90m' : '';
   white = color ? '\u001b[37m' : '';
+  bold = color ? '\u001b[1m' : '';
+  normal = color ? '\u001b[22m' : '';
   dot = (isWindows ? '.' : '\u00B7');
   ex = red + (isWindows ? '\u00D7' : '\u2716');
   arrow = (isWindows ? '\u2192' : '\u279C') + ' ';
@@ -1711,7 +1764,7 @@ exam.console = {
    this.init(options);
   }
   if (!options.hideAscii) {
-   var version = '0.1.2';
+   var version = '0.1.3';
    var art = [
     yellow + '  ' + grey + '  _',
     yellow + ' __' + grey + '(O)' + yellow + '__ ' + grey + '   _____           v' + version,
@@ -1763,20 +1816,21 @@ exam.console = {
      title = parent.name + (title[0] == '.' ? '' : ' ') + title;
      parent = parent.parent;
     }
+    title = boldify(title).replace(/([^\.])$/, '$1' + grey + '.' + base);
     (data.errors = data.errors || []).push(title + '\n' + formatStack(error));
    }
    if (name) {
     if (children) {
      if (!hide) {
-      data.output += indent + base + name;
+      data.output += indent + base + boldify(name);
      }
     }
     else {
-     var key = error ? 'failed' : skip ? 'skipped' : stub ? 'stubbed' : 'passed';
+     var time = node.time;
+     var key = error ? 'failed' : skip ? 'skipped' : stub ? 'stubbed' : time < 0 ? 'skipped' : 'passed';
      data[key]++;
      if (!hide) {
-      var time = node.time;
-      data.output += indent + bullets[key] + name;
+      data.output += indent + bullets[key] + boldify(name);
       if (key == 'passed' && (time >= options.slow)) {
        data.output += (time >= options.verySlow ? red : yellow) + ' (' + time + 'ms)';
       }
@@ -1808,7 +1862,7 @@ exam.console = {
   var errors = data.errors;
   if (errors) {
    errors.forEach(function (error, index) {
-    output += '\n\n' + base + (1 + index) + grey + ') ' + base + error;
+    output += '\n\n' + base + (index + 1) + grey + ') ' + base + error;
    });
   }
   var time = grey + '(' + data.time + 'ms)' + base;
@@ -1828,19 +1882,29 @@ exam.console = {
  }
 };
 function formatStack(stack) {
- var linesBefore = 8;
+ var dirs = [[process.cwd(), '.'], [process.env.HOME, '~']];
+ var linesBefore = 5;
  stack = stack.replace(/(\n + at )/, grey + '$1');
  stack = stack.replace(
-  stackPattern,
+  /\n +at ([^:\n]+ \(|)(\/[^:]+\/)([^\/:]+):(\d+):(\d+)(\)?)/g,
   function (match, start, path, file, line, char, end) {
-   var message = '\n    at ' + (start || '(') + cyan + './' + path +
+   var shortPath = path;
+   for (var i = 0; i < 2; i++) {
+    var dir = dirs[i];
+    if (dir[0] && (path.indexOf(dir[0]) === 0)) {
+     shortPath = dir[1] + path.substr(dir[0].length);
+     break;
+    }
+   }
+   var message = '\n    at ' + (start || '(') +
+    cyan + shortPath +
     yellow + file + grey + ':' +
     base + line + grey + ':' +
     green + char + grey + (end || ')');
    if (linesBefore >= 1) {
     var lineNumber = line * 1; var lines = '';
     try {
-     lines += fs.readFileSync(cwd + '/' + path + file);
+     lines += fs.readFileSync(path + file);
     }
     catch (e) {
     }
@@ -1849,28 +1913,36 @@ function formatStack(stack) {
     start = Math.max(1, lineNumber - linesBefore);
     end = Math.min(lines.length, lineNumber + Math.round(linesBefore / 2));
     var numberLength = ('' + end).length;
-    for (var i = start; i <= end; i++) {
+    for (i = start; i <= end; i++) {
      line = lines[i - 1];
      var indent = '         ';
      var pipe = '| ';
      if (i == lineNumber) {
       char--;
-      line = line.substr(0, char) + green + line.substr(char) + grey;
-      indent = base + '       ' + arrow;
+      line = line.substr(0, char) + green + line.substr(char).replace(/(;?$)/, grey + '$1');
+      indent = '       ' + base + arrow;
       pipe = grey + pipe + base;
      }
      var n = '' + i;
      n = Array(numberLength - n.length + 1).join(' ') + n;
      message += '\n' + indent + n + pipe + line.replace('\t', '  ');
     }
-    linesBefore /= 2;
+    linesBefore -= 2;
    }
    return message;
   }
  );
+ stack = stack.replace(/(\n +at )(\S+ )/g, '$1' + base + '$2' + grey);
  return '   ' + red + stack + base;
 }
-exam.counts = {
+function boldify(text) {
+ return text.replace(/(`\S+.*?\S+`|\S+\.\S+)/g, function (text) {
+  if (text[0] == '`') {
+   text = text.substr(1, text.length - 2);
+  }
+  return bold + text + normal;
+ });
+}exam.counts = {
  finishTree: function (run, data) {
   var hasOnly = data.hasOnly;
   var dive = function (node) {
