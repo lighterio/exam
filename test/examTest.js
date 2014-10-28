@@ -9,10 +9,14 @@ describe('Exam', function () {
     done();
   });
 
-  it('logs a line break and kills the process on SIGINT', function () {
-    var code = process.listeners('SIGINT')[0].toString();
-    is.in(code, '\n');
-    is.in(code, 'process.kill()');
+  it('logs a line break and kills the process on SIGINT', function (done) {
+    mock(process, {
+      exit: function () {
+        unmock(process);
+        done();
+      }
+    });
+    process.emit('SIGINT');
   });
 
   describe('version', function () {
