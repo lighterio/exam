@@ -339,11 +339,11 @@ var exam = module.exports = function (options) {
   }
  }
 };
-exam.version = '0.1.1';
+exam.version = '0.1.2';
 if ((process.mainModule == module) && !exam.options) {
- exam.options = exam.options || getOptions();
- setImmediate(function () {
-  (exam.options.files ? tree : exam)(exam.options);
+ var examOptions = exam.options = exam.options || getOptions();
+ process.nextTick(function () {
+  (examOptions.files ? tree : exam)(examOptions);
  });
 }
 var Emitter = function () {};
@@ -1123,7 +1123,7 @@ unmock.time = function () {
 });
 function getOptions(options) {
  var defaults = {
-  parser: 'none',
+  parser: 'acorn',
   reporter: 'console',
   slow: 10,
   verySlow: 1e2,
@@ -1143,43 +1143,43 @@ function getOptions(options) {
  }
  else {
   options = defaults;
- }
- var argv = process.argv;
- var flags = [
-  'help|h||Show usage information',
-  'version|V||Show the `exam` version number',
-  'require|r|<path>|Require a module before each test file',
-  'reporter|R|<name>|Result reporter ("console", "tap", "xunit" or "counts")',
-  'recursive|v||Load test files recursively',
-  'parser|p|<parser>|EcmaScript parser ("esprima", "acorn", or "none")',
-  'bail|b||Exit after the first test failure',
-  'grep|g|<pattern>|Only run files/tests that match a pattern',
-  'ignore|i|<pattern>|Exclude files/tests that match a pattern',
-  'watch|w||When changes are made, re-run tests',
-  'ignore-watch|W|<pattern>|Do not watch files that match a pattern',
-  'fs-watch-limit|l|<number>|Cap the number of `fs.watch` calls',
-  'watch-limit|L|<ms>| Cap the number of `fs.stat` watched directories',
-  'fallback-watch-interval|I|<ms>|Milliseconds between `fs.stat` calls for watching',
-  'debug|d||Run `node` with the --debug flag',
-  'multi-process|m||If true, tests are distributed among CPUs',
-  'timeout|t|<ms>|Test case timeout in milliseconds',
-  'slow|s|<ms>|Slow test (yellow warning) threshold in milliseconds',
-  'very-slow|S|<ms>|Very slow (red warning) threshold in milliseconds',
-  'hide-ascii|A||Do not show ASCII art before the run',
-  'hide-progress|P||Do not show dots as tests run',
-  'continue-asserts|c||Continue a test after a failed assertion',
-  'no-colors|C||Turn off color console logging',
-  'timestamp|T||Show a timestamp after console reporter output',
-  'files||<files>|Run tests on a comma-delimited set of files'
- ];
- var map = {};
- flags.forEach(function (flag) {
-  flag = flag.split('|');
-  map[flag[0]] = flag;
-  map[flag[1]] = flag;
- });
- for (var index = 2; index < argv.length; index++) {
-  argv[index].replace(/^\s*(-*)(.*)\s*$/g, dashify);
+  var argv = process.argv;
+  var flags = [
+   'help|h||Show usage information',
+   'version|V||Show the `exam` version number',
+   'require|r|<path>|Require a module before each test file',
+   'reporter|R|<name>|Result reporter ("console", "tap", "xunit" or "counts")',
+   'recursive|v||Load test files recursively',
+   'parser|p|<parser>|EcmaScript parser ("esprima", "acorn", or "none")',
+   'bail|b||Exit after the first test failure',
+   'grep|g|<pattern>|Only run files/tests that match a pattern',
+   'ignore|i|<pattern>|Exclude files/tests that match a pattern',
+   'watch|w||When changes are made, re-run tests',
+   'ignore-watch|W|<pattern>|Do not watch files that match a pattern',
+   'fs-watch-limit|l|<number>|Cap the number of `fs.watch` calls',
+   'watch-limit|L|<ms>| Cap the number of `fs.stat` watched directories',
+   'fallback-watch-interval|I|<ms>|Milliseconds between `fs.stat` calls for watching',
+   'debug|d||Run `node` with the --debug flag',
+   'multi-process|m||If true, tests are distributed among CPUs',
+   'timeout|t|<ms>|Test case timeout in milliseconds',
+   'slow|s|<ms>|Slow test (yellow warning) threshold in milliseconds',
+   'very-slow|S|<ms>|Very slow (red warning) threshold in milliseconds',
+   'hide-ascii|A||Do not show ASCII art before the run',
+   'hide-progress|P||Do not show dots as tests run',
+   'continue-asserts|c||Continue a test after a failed assertion',
+   'no-colors|C||Turn off color console logging',
+   'timestamp|T||Show a timestamp after console reporter output',
+   'files||<files>|Run tests on a comma-delimited set of files'
+  ];
+  var map = {};
+  flags.forEach(function (flag) {
+   flag = flag.split('|');
+   map[flag[0]] = flag;
+   map[flag[1]] = flag;
+  });
+  for (var index = 2; index < argv.length; index++) {
+   argv[index].replace(/^\s*(-*)(.*)\s*$/g, dashify);
+  }
  }
  options.optionify = function () {
   if (options.version) {
@@ -1254,8 +1254,6 @@ var tree = function (options) {
   reporter.init(options);
  }
  var timers = require('timers');
- var setTimeout = timers.setTimeout;
- var clearTimeout = timers.clearTimeout;
 
 
  var WAIT = 0;
@@ -1375,10 +1373,11 @@ var tree = function (options) {
  Node.prototype.timeout = function (time) {
   var node = this;
   node.timeLimit = time;
-  clearTimeout(Node.timer);
+  timers.clearTimeout(Node.timer);
   if (time > 0) {
-   Node.timer = setTimeout(function () {
+   Node.timer = timers.setTimeout(function () {
     fail(context, new Error('Timeout of ' + time + 'ms exceeded.'));
+    next();
    }, time);
   }
  };
@@ -1500,14 +1499,17 @@ var tree = function (options) {
      var isDone = false;
      ctx.timeout(ctx.timeLimit);
      try {
-      fn.call(ctx, function () {
-       if (isDone) {
+      fn.call(ctx, function (e) {
+       if (e && !ctx.error) {
+        fail(ctx, e);
+       }
+       else if (isDone && !ctx.error) {
         fail(ctx, new Error('Called `done` multiple times.'));
        }
        else {
         isDone = true;
-        next();
        }
+       next();
       });
       return;
      }
@@ -1641,7 +1643,7 @@ var tree = function (options) {
   });
   try {
    process.send(data);
-   if (options.multiProcess) {
+   if (options.multiProcess && !options.watch) {
     process.exit();
    }
   }
@@ -1709,7 +1711,7 @@ exam.console = {
    this.init(options);
   }
   if (!options.hideAscii) {
-   var version = '0.1.1';
+   var version = '0.1.2';
    var art = [
     yellow + '  ' + grey + '  _',
     yellow + ' __' + grey + '(O)' + yellow + '__ ' + grey + '   _____           v' + version,
@@ -1758,7 +1760,7 @@ exam.console = {
     var parent = node.parent;
     var title = name;
     while (parent && parent.name) {
-     title = parent.name + (name[0] == '.' ? '' : ' ') + name;
+     title = parent.name + (title[0] == '.' ? '' : ' ') + title;
      parent = parent.parent;
     }
     (data.errors = data.errors || []).push(title + '\n' + formatStack(error));
