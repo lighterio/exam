@@ -20,14 +20,14 @@ chug([
     function one(match) {
       return one[match] ? '' : one[match] = match;
     }
-    asset.replace(/\/\/[^\n]+\s+/g, '');
+    asset.replace(/\s+\/\/[^\n]+/g, '');
     asset.replace(/\/\*[\s\S]*?\*\/\s+/g, '');
     asset.replace(/var fs = require\('fs'\);\n/g, one);
     asset.replace(/module\.exports = /g, one);
     asset.replace(/delete require\.cache\[runPath\];\s+require\(runPath\)/, 'run');
     asset.replace(/require\('\.[^']*\/(tree|stringify)'\)/g, '$1');
     asset.replace(/var ([a-z]+)Reporter/g, 'exam.$1');
-    asset.replace(/require\([^\)]+(options\.reporter)\);/g, 'exam[$1]');
+    asset.replace(/require\([^\)]+(options\.reporter)\);/g, 'exam[$1];');
     asset.replace(/var (Emitter|tree|mkdirp) = require[^\n]+/g, '');
     asset.replace(/global\.(is|mock) = require\('\.\/\1'\);/g, '');
     asset.replace(/require\('[^\)]+\/package\.json'\)\.version/g, "'" + pkg.version + "'");
