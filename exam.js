@@ -12,7 +12,7 @@ var exam = module.exports = function (options) {
  var manifest = {};
  var cacheDir = options.dir + '/.cache/exam';
  var manifestPath = cacheDir + '/manifest.json';
- var reporter = exam[options.reporter]
+ var reporter = exam[options.reporter];
  var stream = reporter.stream = options.stream;
  start();
  readManifest();
@@ -63,13 +63,14 @@ var exam = module.exports = function (options) {
    watchMap[dir] = mtime;
    watchList.push(dir);
    watchList.sort(function (a, b) {
-    return watchMap[a] > watchMap[b] ? -1 : 1; });
+    return watchMap[a] > watchMap[b] ? -1 : 1;
+   });
    if (++fsWatchCount <= options.fsWatchLimit) {
     try {
      fs.watch(dir, onChange);
     }
     catch (e) {
-     }
+    }
    }
    fs.readdir(dir, function (e, files) {
     if (!e) {
@@ -417,7 +418,8 @@ var mkdirp = function (p, m, f) {
  p = path.resolve(p);
  if (typeof m == 'function') {
   f = m;
-  m = 493; }
+  m = 493;
+ }
  mk(p, m, f || function () {});
 };
 mkdirp.fs = require('fs');
@@ -802,6 +804,12 @@ function deep(data, stack) {
  }
  else if (data instanceof Error) {
   data = '(new Error("' + (data.message || data.toString()).replace(/"/g, '\\"') + '"))';
+ }
+ else if (data instanceof RegExp) {
+  data = '/' + data.source + '/' +
+   (data.global ? 'g' : '') +
+   (data.ignoreCase ? 'i' : '') +
+   (data.multiline ? 'm' : '');
  }
  else if (typeof data == 'object') {
   stack = stack || [];
@@ -1206,6 +1214,7 @@ function getOptions(options) {
    'recursive|v||Load test files recursively',
    'parser|p|<parser>|EcmaScript parser ("esprima", "acorn", or "none")',
    'bail|b||Exit after the first test failure',
+   'assertive|B||Stop a test after one failed assertion',
    'grep|g|<pattern>|Only run files/tests that match a pattern',
    'ignore|i|<pattern>|Exclude files/tests that match a pattern',
    'watch|w||When changes are made, re-run tests',
@@ -1220,7 +1229,6 @@ function getOptions(options) {
    'very-slow|S|<ms>|Very slow (red warning) threshold in milliseconds',
    'hide-ascii|A||Do not show ASCII art before the run',
    'hide-progress|P||Do not show dots as tests run',
-   'continue-asserts|c||Continue a test after a failed assertion',
    'no-colors|C||Turn off color console logging',
    'timestamp|T||Show a timestamp after console reporter output',
    'files||<files>|Run tests on a comma-delimited set of files'
@@ -1301,7 +1309,7 @@ var tree = function (options) {
  options = options || exam.options || getOptions();
  var grep = options.grep;
  var ignore = options.ignore;
- var reporter = exam[options.reporter]
+ var reporter = exam[options.reporter];
  var stream = reporter.stream = options.stream;
  var showProgress = reporter.init && !options.hideProgress;
  if (showProgress) {
@@ -1339,7 +1347,8 @@ var tree = function (options) {
    if (parsingPath) {
     var error;
     try {
-     eval('var f=function(){' + script + '}'); }
+     eval('var f=function(){' + script + '}');
+    }
     catch (e) {
      parser.parse(script);
     }
@@ -1357,7 +1366,7 @@ var tree = function (options) {
   stream.write('\n\n');
   process.exit();
  });
- if (options.continueAsserts) {
+ if (!options.assertive) {
   Emitter.extend(is);
   is.on('result', function (result) {
    if (result instanceof Error) {
@@ -1736,6 +1745,7 @@ var tree = function (options) {
 var base, green, red, yellow, cyan, grey, white;
 var dot, ex, arrow, bullets;
 var bold, normal;
+var isChild = false;
 exam.console = {
  init: function (options) {
   var isWindows = (process.platform == 'win32');
@@ -1758,11 +1768,18 @@ exam.console = {
    skipped: yellow + (isWindows ? '*' : '\u272D') + ' ',
    stubbed: cyan + arrow
   };
+  isChild = options.multiProcess && options.files;
+ },
+ queue: [],
+ write: function (chunk, flush) {
+  this.queue.push(chunk);
+  if (flush || (this.queue.length > 9)) {
+   this.stream.write(this.queue.join(''));
+   this.queue.length = 0;
+  }
  },
  start: function (options) {
-  if (!base) {
-   this.init(options);
-  }
+  this.init(options);
   if (!options.hideAscii) {
    var version = '0.1.3';
    var art = [
@@ -1775,30 +1792,29 @@ exam.console = {
     yellow + ' """""""',
     base
    ];
-   this.stream.write(art.join('\n'));
+   this.write(art.join('\n'), true);
   }
  },
  skip: function () {
- this.stream.write(yellow + dot + base);
+  this.write(isChild ? '<@%"skip"%@>' : yellow + dot + base);
  },
  stub: function () {
-  this.stream.write(cyan + dot + base);
+  this.write(isChild ? '<@%"stub"%@>' : cyan + dot + base);
  },
  pass: function () {
-  this.stream.write(green + dot + base);
+  this.write(isChild ? '<@%"pass"%@>' : green + dot + base);
  },
  fail: function () {
-  this.stream.write(ex + base);
+  this.write(isChild ? '<@%"fail"%@>' : ex + base);
  },
  timestamp: function () {
   var date = new Date();
-  this.stream.write(grey + date.toISOString().replace(/[A-Z]/g, ' ') + base + '\n\n');
+  this.write(grey + date.toISOString().replace(/[A-Z]/g, ' ') + base + '\n\n', true);
  },
  finishTree: function (run, data) {
   var options = run.options;
-  if (!base) {
-   this.init(options);
-  }
+  this.init(options);
+  this.write('', true);
   var hasOnly = data.hasOnly;
   var dive = function (node, indent) {
    var name = node.name;
@@ -1808,8 +1824,8 @@ exam.console = {
    var error = (stub || skip) ? '' : node.error;
    var children = node.children;
    var color = error ? red : skip ? yellow : stub ? cyan : children ? base : grey;
+   var results = node.results;
    if (error) {
-    var results = node.results;
     var parent = node.parent;
     var title = name;
     while (parent && parent.name) {
@@ -1877,13 +1893,14 @@ exam.console = {
    output += '\n' + cyan + data.stubbed + ' stubbed';
   }
   output += base + '\n\n';
-  this.stream.write(output);
+  this.write(output, true);
   return output;
  }
 };
 function formatStack(stack) {
  var dirs = [[process.cwd(), '.'], [process.env.HOME, '~']];
  var linesBefore = 5;
+ stack = stack.replace(/\u001b/g, '\\u001b');
  stack = stack.replace(/(\n + at )/, grey + '$1');
  stack = stack.replace(
   /\n +at ([^:\n]+ \(|)(\/[^:]+\/)([^\/:]+):(\d+):(\d+)(\)?)/g,
@@ -1902,7 +1919,8 @@ function formatStack(stack) {
     base + line + grey + ':' +
     green + char + grey + (end || ')');
    if (linesBefore >= 1) {
-    var lineNumber = line * 1; var lines = '';
+    var lineNumber = line * 1;
+    var lines = '';
     try {
      lines += fs.readFileSync(path + file);
     }
@@ -1936,13 +1954,11 @@ function formatStack(stack) {
  return '   ' + red + stack + base;
 }
 function boldify(text) {
- return text.replace(/(`\S+.*?\S+`|\S+\.\S+)/g, function (text) {
-  if (text[0] == '`') {
-   text = text.substr(1, text.length - 2);
-  }
+ return text.replace(/`(\S+.*?\S+)`/g, function (match, text) {
   return bold + text + normal;
  });
-}exam.counts = {
+}
+exam.counts = {
  finishTree: function (run, data) {
   var hasOnly = data.hasOnly;
   var dive = function (node) {
