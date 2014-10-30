@@ -2,7 +2,7 @@ var chug = require('chug');
 var pkg = require('./package');
 
 chug([
-  'lib/exam.js',
+  'lib/_exam.js',
   'lib/common/emitter.js',
   'lib/common/mkdirp.js',
   'lib/common/stringify.js',

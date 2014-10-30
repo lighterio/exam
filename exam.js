@@ -347,7 +347,7 @@ var exam = module.exports = function (options) {
   }
  }
 };
-exam.version = '0.1.3';
+exam.version = '0.1.4';
 if ((process.mainModule == module) && !exam.options) {
  var examOptions = exam.options = exam.options || getOptions();
  process.nextTick(function () {
@@ -446,38 +446,23 @@ function mk(p, m, f, d) {
   }
  });
 }
-var stringify = function (obj, decycle, space) {
- return JSON.stringify(obj, getSerialize(decycle), space);
-};
-function getSerialize(decycle) {
- var seen = [], keys = [];
- decycle = decycle || function(key, value) {
-  return '[Circular ' + getPath(value, seen, keys) + ']';
- };
- return function(key, value) {
-  var ret = value;
-  if (typeof value === 'object' && value) {
-   if (seen.indexOf(value) !== -1)
-    ret = decycle(key, value);
-   else {
-    seen.push(value);
-    keys.push(key);
+var f = JSON.stringify;
+var n = f.toString().indexOf('[native code]') < 0;
+JSON.stringify = n ? f : function (o, u, w) {
+ var a = [];
+ return f(o, u || function(k, v) {
+  if (typeof v == 'object' && v) {
+   var l = a.length;
+   for (var i = 0; i < l; i++) {
+    if (a[i] == v) {
+     return "[Circular " + (l - i) + "]";
+    }
    }
+   a.push(v);
   }
-  return ret;
- };
-}
-function getPath(value, seen, keys) {
- var index = seen.indexOf(value);
- var path = [ keys[index] ];
- for (index--; index >= 0; index--) {
-  if (seen[index][ path[0] ] === value) {
-   value = seen[index];
-   path.unshift(keys[index]);
-  }
- }
- return '~' + path.join('.');
-}
+  return v;
+ }, w);
+};
 var AssertionError = require('assert').AssertionError;
 function is(actual, expected) {
  var fn = (actual === expected) ? is.pass : is.fail;
@@ -1781,7 +1766,7 @@ exam.console = {
  start: function (options) {
   this.init(options);
   if (!options.hideAscii) {
-   var version = '0.1.3';
+   var version = '0.1.4';
    var art = [
     yellow + '  ' + grey + '  _',
     yellow + ' __' + grey + '(O)' + yellow + '__ ' + grey + '   _____           v' + version,
