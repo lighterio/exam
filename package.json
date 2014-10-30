@@ -1,6 +1,6 @@
 {
   "name": "exam",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Clustered JavaScript test runner with builtin assertions",
   "dependencies": {
     "acorn": "0.9.0",
@@ -24,7 +24,7 @@
   "main": "exam.js",
   "bin": {
     "exam": "exam.js",
-    "exam-dev": "lib/exam.js"
+    "_exam": "lib/_exam.js"
   },
   "engines": {
     "node": ">=0.2.6"

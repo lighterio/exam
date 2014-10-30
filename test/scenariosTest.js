@@ -1,5 +1,5 @@
 var fs = require('fs');
-var exam = require('../lib/exam');
+var exam = require('../lib/_exam');
 
 function invoke(options, done) {
   var write = mock.concat();
