@@ -5,7 +5,7 @@ chug([
   'lib/_exam.js',
   'lib/common/emitter.js',
   'lib/common/mkdirp.js',
-  'lib/common/stringify.js',
+  'lib/common/scriptify.js',
   'lib/is.js',
   'lib/mock.js',
   'lib/options.js',
@@ -25,7 +25,8 @@ chug([
     asset.replace(/var fs = require\('fs'\);\n/g, one);
     asset.replace(/module\.exports = /g, one);
     asset.replace(/delete require\.cache\[runPath\];\s+require\(runPath\)/, 'run');
-    asset.replace(/require\('\.[^']*\/(tree|stringify)'\)/g, '$1');
+    asset.replace(/require\('\.[^']*\/(tree)'\)/g, '$1');
+    asset.replace(/require\('\.[^']*\/(scriptify)'\);/g, '');
     asset.replace(/var ([a-z]+)Reporter/g, 'exam.$1');
     asset.replace(/require\([^\)]+(options\.reporter)\);/g, 'exam[$1];');
     asset.replace(/var (Emitter|tree|mkdirp) = require[^\n]+/g, '');

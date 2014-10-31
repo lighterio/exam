@@ -240,7 +240,7 @@ var exam = module.exports = function (options) {
      data += chunk;
      data = data.replace(/<@%(.*?)%@>/g, function (match, json) {
       try {
-       var result = JSON.parse(json);
+       var result = JSON.eval(json);
        if (typeof result == 'string') {
         reporter[result]();
        }
@@ -347,7 +347,7 @@ var exam = module.exports = function (options) {
   }
  }
 };
-exam.version = '0.1.4';
+exam.version = '0.1.5';
 if ((process.mainModule == module) && !exam.options) {
  var examOptions = exam.options = exam.options || getOptions();
  process.nextTick(function () {
@@ -446,30 +446,87 @@ function mk(p, m, f, d) {
   }
  });
 }
-var f = JSON.stringify;
-var n = f.toString().indexOf('[native code]') < 0;
-JSON.stringify = n ? f : function (o, u, w) {
- var a = [];
- return f(o, u || function(k, v) {
-  if (typeof v == 'object' && v) {
-   var l = a.length;
-   for (var i = 0; i < l; i++) {
+JSON.scriptify = js;
+JSON.eval = function (s) {
+ try {
+  eval('eval.o=' + s);
+  return eval.o;
+ }
+ catch (e) {
+  eval.e = e;
+ }
+};
+function js(v, a) {
+ var t = typeof v;
+ if (t == 'function') {
+  return v.toString();
+ }
+ if (t == 'string') {
+  return '"' + v.replace(/["\t\n\r]/g, function (c) {
+   return c == '"' ? '\\"' : c == '\t' ? '\\t' : c == '\n' ? '\\n' : '';
+  }) + '"';
+ }
+ if (t == 'object' && v) {
+  if (v instanceof Date) {
+   return 'new Date(' + v.getTime() + ')';
+  }
+  if (v instanceof Error) {
+   return '(function(){var e=new Error(' + js(v.message) + ');' +
+    'e.stack=' + js(v.stack) + ';return e})()';
+  }
+  if (v instanceof RegExp) {
+   return '/' + v.source + '/' +
+    (v.global ? 'g' : '') +
+    (v.ignoreCase ? 'i' : '') +
+    (v.multiline ? 'm' : '');
+  }
+  var i, l;
+  if (a) {
+   l = a.length;
+   for (i = 0; i < l; i++) {
     if (a[i] == v) {
-     return "[Circular " + (l - i) + "]";
+     return '{"^":' + (l - i) + '}';
     }
    }
-   a.push(v);
   }
-  return v;
- }, w);
-};
+  (a = a || []).push(v);
+  var s;
+  if (v instanceof Array) {
+   s = '[';
+   l = v.length;
+   for (i = 0; i < l; i++) {
+    s += (i ? ',' : '') + js(v[i], a);
+   }
+   a.pop();
+   return s + ']';
+  }
+  else {
+   var i = 0;
+   s = '{';
+   for (var k in v) {
+    s += (i ? ',' : '') +
+     (/^[$_a-z][\w$]*$/i.test(k) ? k : '"' + k + '"') +
+     ':' + js(v[k], a);
+    i++;
+   }
+   a.pop();
+   return s + '}';
+  }
+ }
+ return '' + v;
+}// Throw assertion errors, like any well-behaving assertion library.
 var AssertionError = require('assert').AssertionError;
 function is(actual, expected) {
  var fn = (actual === expected) ? is.pass : is.fail;
  var op = '===';
- return fn([deep(actual), op, deep(expected)], is, actual, expected);
+ return fn([js(actual), op, js(expected)], is, actual, expected);
 }
 global.is = is.is = is;
+var js = JSON.scriptify;
+Object.defineProperty(is, 'stringify', {
+ enumerable: false,
+ value: js
+});
 is.pass = function (pieces) {
  if (is.emit) {
   var message = (pieces instanceof Array) ? pieces.join(' ') : (pieces || 'pass');
@@ -500,217 +557,217 @@ is.fail = function (pieces, startFunction, actual, expected, operator) {
 is.not = function (actual, expected) {
  var fn = (actual !== expected) ? is.pass : is.fail;
  var op = '!==';
- return fn([deep(actual), op, deep(expected)], is.not, actual, expected);
+ return fn([js(actual), op, js(expected)], is.not, actual, expected);
 };
 is.equal = function (actual, expected) {
  var fn = (actual == expected) ? is.pass : is.fail;
  var op = '==';
- return fn([deep(actual), op, deep(expected)], is.equal, actual, expected);
+ return fn([js(actual), op, js(expected)], is.equal, actual, expected);
 };
 is.notEqual = function (actual, expected) {
  var fn = (actual != expected) ? is.pass : is.fail;
  var op = '!=';
- return fn([deep(actual), op, deep(expected)], is.notEqual, actual, expected);
+ return fn([js(actual), op, js(expected)], is.notEqual, actual, expected);
 };
 is.same = is.deepEqual = function (actual, expected) {
- var fn = (deep(actual) == deep(expected)) ? is.pass : is.fail;
+ var fn = (js(actual) == js(expected)) ? is.pass : is.fail;
  var op = 'same';
- return fn([deep(actual), op, deep(expected)], is.same, actual, expected);
+ return fn([js(actual), op, js(expected)], is.same, actual, expected);
 };
 is.notSame = is.notDeepEqual = function (actual, expected) {
- var fn = (deep(actual) != deep(expected)) ? is.pass : is.fail;
+ var fn = (js(actual) != js(expected)) ? is.pass : is.fail;
  var op = 'notSame';
- return fn([deep(actual), op, deep(expected)], is.notSame, actual, expected);
+ return fn([js(actual), op, js(expected)], is.notSame, actual, expected);
 };
 is.greater = function (first, second) {
  var fn = (first > second) ? is.pass : is.fail;
  var op = '>';
- return fn([deep(first), op, deep(second)], is.greater, first, second);
+ return fn([js(first), op, js(second)], is.greater, first, second);
 };
 is.less = function (first, second) {
  var fn = (first < second) ? is.pass : is.fail;
  var op = '<';
- return fn([deep(first), op, deep(second)], is.less, first, second);
+ return fn([js(first), op, js(second)], is.less, first, second);
 };
 is.greaterOrEqual = function (first, second) {
  var fn = (first >= second) ? is.pass : is.fail;
  var op = '>=';
- return fn([deep(first), op, deep(second)], is.greaterOrEqual, first, second);
+ return fn([js(first), op, js(second)], is.greaterOrEqual, first, second);
 };
 is.lessOrEqual = function (first, second) {
  var fn = (first <= second) ? is.pass : is.fail;
  var op = '<=';
- return fn([deep(first), op, deep(second)], is.lessOrEqual, first, second);
+ return fn([js(first), op, js(second)], is.lessOrEqual, first, second);
 };
 is.type = function (value, type) {
  var fn = (typeof value == type) ? is.pass : is.fail;
  var op = 'is a ' + type;
- return fn([deep(value), op, type], is.type, value, type);
+ return fn([js(value), op, type], is.type, value, type);
 };
 is.notType = function (value, type) {
  var fn = (typeof value != type) ? is.pass : is.fail;
  var op = 'is a ' + type;
- return fn([deep(value), op, type], is.notType, value, type);
+ return fn([js(value), op, type], is.notType, value, type);
 };
 is.undefined = function (value) {
  var fn = (typeof value == 'undefined') ? is.pass : is.fail;
  var op = 'is undefined';
- return fn([deep(value), op], is.undefined, value);
+ return fn([js(value), op], is.undefined, value);
 };
 is.notUndefined = is.defined = function (value) {
  var fn = (typeof value != 'undefined') ? is.pass : is.fail;
  var op = 'is defined';
- return fn([deep(value), op], is.defined, value);
+ return fn([js(value), op], is.defined, value);
 };
 is.boolean = function (value) {
  var fn = (typeof value == 'boolean' || value instanceof Boolean) ? is.pass : is.fail;
  var op = 'is a boolean';
- return fn([deep(value), op], is.boolean, value);
+ return fn([js(value), op], is.boolean, value);
 };
 is.notBoolean = function (value) {
  var fn = (typeof value != 'boolean' && !(value instanceof Boolean)) ? is.pass : is.fail;
  var op = 'is not a boolean';
- return fn([deep(value), op], is.notBoolean, value);
+ return fn([js(value), op], is.notBoolean, value);
 };
 is.number = function (value) {
  var fn = (typeof value == 'number' || value instanceof Number) ? is.pass : is.fail;
  var op = 'is a number';
- return fn([deep(value), op], is.number, value);
+ return fn([js(value), op], is.number, value);
 };
 is.notNumber = function (value) {
  var fn = (typeof value != 'number' && !(value instanceof Number)) ? is.pass : is.fail;
  var op = 'is not a number';
- return fn([deep(value), op], is.notNumber, value);
+ return fn([js(value), op], is.notNumber, value);
 };
 is.string = function (value) {
  var fn = (typeof value == 'string' || value instanceof String) ? is.pass : is.fail;
  var op = 'is a string';
- return fn([deep(value), op], is.string, value);
+ return fn([js(value), op], is.string, value);
 };
 is.notString = function (value) {
  var fn = (typeof value != 'string' && !(value instanceof String)) ? is.pass : is.fail;
  var op = 'is not a string';
- return fn([deep(value), op], is.notString, value);
+ return fn([js(value), op], is.notString, value);
 };
 is.function = function (value) {
  var fn = (typeof value == 'function' || value instanceof Function) ? is.pass : is.fail;
  var op = 'is a function';
- return fn([deep(value), op], is.function, value);
+ return fn([js(value), op], is.function, value);
 };
 is.notFunction = function (value) {
  var fn = (typeof value != 'function' && !(value instanceof Function)) ? is.pass : is.fail;
  var op = 'is not a function';
- return fn([deep(value), op], is.notFunction, value);
+ return fn([js(value), op], is.notFunction, value);
 };
 is.object = function (value) {
  var fn = (typeof value == 'object') ? is.pass : is.fail;
  var op = 'is an object';
- return fn([deep(value), op], is.object, value);
+ return fn([js(value), op], is.object, value);
 };
 is.notObject = function (value) {
  var fn = (typeof value != 'object') ? is.pass : is.fail;
  var op = 'is not an object';
- return fn([deep(value), op], is.notObject, value);
+ return fn([js(value), op], is.notObject, value);
 };
 is.instanceOf = function (value, expectedClass) {
  var fn = (typeof expectedClass == 'function' && value instanceof expectedClass) ? is.pass : is.fail;
  var op = 'is an instance of';
- return fn([deep(value), op, expectedClass.name], is.instanceOf, value);
+ return fn([js(value), op, expectedClass.name], is.instanceOf, value);
 };
 is.notInstanceOf = function (value, expectedClass) {
  var fn = !(typeof expectedClass == 'function' && value instanceof expectedClass) ? is.pass : is.fail;
  var op = 'is not an instance of';
- return fn([deep(value), op, expectedClass.name], is.notInstanceOf, value);
+ return fn([js(value), op, expectedClass.name], is.notInstanceOf, value);
 };
 is.array = function (value) {
  var fn = (value instanceof Array) ? is.pass : is.fail;
  var op = 'is an Array';
- return fn([deep(value), op], is.array, value);
+ return fn([js(value), op], is.array, value);
 };
 is.notArray = function (value) {
  var fn = !(value instanceof Array) ? is.pass : is.fail;
  var op = 'is not an Array';
- return fn([deep(value), op], is.notArray, value);
+ return fn([js(value), op], is.notArray, value);
 };
 is.date = function (value) {
  var fn = (value instanceof Date) ? is.pass : is.fail;
  var op = 'is a Date';
- return fn([deep(value), op], is.date, value);
+ return fn([js(value), op], is.date, value);
 };
 is.notDate = function (value) {
  var fn = !(value instanceof Date) ? is.pass : is.fail;
  var op = 'is not a Date';
- return fn([deep(value), op], is.notDate, value);
+ return fn([js(value), op], is.notDate, value);
 };
 is.error = function (value) {
  var fn = (value instanceof Error) ? is.pass : is.fail;
  var op = 'is an Error';
- return fn([deep(value), op], is.error, value);
+ return fn([js(value), op], is.error, value);
 };
 is.notError = function (value) {
  var fn = !(value instanceof Error) ? is.pass : is.fail;
  var op = 'is not an Error';
- return fn([deep(value), op], is.notError, value);
+ return fn([js(value), op], is.notError, value);
 };
 is.regExp = function (value) {
  var fn = (value instanceof RegExp) ? is.pass : is.fail;
  var op = 'is a RegExp';
- return fn([deep(value), op], is.regExp, value);
+ return fn([js(value), op], is.regExp, value);
 };
 is.notRegExp = function (value) {
  var fn = !(value instanceof RegExp) ? is.pass : is.fail;
  var op = 'is not a RegExp';
- return fn([deep(value), op], is.notRegExp, value);
+ return fn([js(value), op], is.notRegExp, value);
 };
 is.nan = function (value) {
  var fn = isNaN(value) ? is.pass : is.fail;
  var op = 'is NaN';
- return fn([deep(value), op], is.nan, value);
+ return fn([js(value), op], is.nan, value);
 };
 is.notNan = function (value) {
  var fn = !isNaN(value) ? is.pass : is.fail;
  var op = 'is not NaN';
- return fn([deep(value), op], is.notNan, value);
+ return fn([js(value), op], is.notNan, value);
 };
 is.null = function (value) {
  var fn = (value === null) ? is.pass : is.fail;
  var op = 'is null';
- return fn([deep(value), op], is.null, value);
+ return fn([js(value), op], is.null, value);
 };
 is.notNull = function (value) {
  var fn = (value !== null) ? is.pass : is.fail;
  var op = 'is not null';
- return fn([deep(value), op], is.notNull, value);
+ return fn([js(value), op], is.notNull, value);
 };
 is.true = function (value) {
  var fn = (value === true) ? is.pass : is.fail;
  var op = 'is true';
- return fn([deep(value), op], is.true, value);
+ return fn([js(value), op], is.true, value);
 };
 is.notTrue = function (value) {
  var fn = (value !== true) ? is.pass : is.fail;
  var op = 'is not true';
- return fn([deep(value), op], is.true, value);
+ return fn([js(value), op], is.true, value);
 };
 is.false = function (value) {
  var fn = (value === false) ? is.pass : is.fail;
  var op = 'is false';
- return fn([deep(value), op], is.false, value);
+ return fn([js(value), op], is.false, value);
 };
 is.notFalse = function (value) {
  var fn = (value !== false) ? is.pass : is.fail;
  var op = 'is not false';
- return fn([deep(value), op], is.false, value);
+ return fn([js(value), op], is.false, value);
 };
 is.truthy = function (value) {
  var fn = value ? is.pass : is.fail;
  var op = 'is truthy';
- return fn([deep(value), op], is.truthy, value);
+ return fn([js(value), op], is.truthy, value);
 };
 is.falsy = function (value) {
  var fn = !value ? is.pass : is.fail;
  var op = 'is falsy';
- return fn([deep(value), op], is.falsy, value);
+ return fn([js(value), op], is.falsy, value);
 };
 is.in = function (value, search) {
  var ok = (typeof value == 'string');
@@ -724,7 +781,7 @@ is.in = function (value, search) {
  }
  var fn = ok ? is.pass : is.fail;
  var op = 'is in';
- return fn([deep(search), op, deep(value)], is.in, search, value);
+ return fn([js(search), op, js(value)], is.in, search, value);
 };
 is.notIn = function (value, search) {
  var ok = (typeof value == 'string');
@@ -738,17 +795,17 @@ is.notIn = function (value, search) {
  }
  var fn = !ok ? is.pass : is.fail;
  var op = 'is not in';
- return fn([deep(search), op, deep(value)], is.notIn, search, value);
+ return fn([js(search), op, js(value)], is.notIn, search, value);
 };
 is.lengthOf = function (value, length) {
  var fn = (value && (value.length === length)) ? is.pass : is.fail;
  var op = 'has a length of';
- return fn([deep(value), op, length], is.lengthOf, value, length);
+ return fn([js(value), op, length], is.lengthOf, value, length);
 };
 is.notLengthOf = function (value, length) {
  var fn = (!value || (value.length !== length)) ? is.pass : is.fail;
  var op = 'does not have a length of';
- return fn([deep(value), op, length], is.notLengthOf, value, length);
+ return fn([js(value), op, length], is.notLengthOf, value, length);
 };
 function isArrayOf(array, expected) {
  var isOk = (array instanceof Array);
@@ -765,100 +822,15 @@ is.arrayOf = function (array, expected) {
  var name = ex.name || ex;
  var fn = (expected && isArrayOf(array, ex)) ? is.pass : is.fail;
  var op = 'is an array of ' + ex + 's';
- return fn([deep(array), op, deep(name)], is.arrayOf, array, expected);
+ return fn([js(array), op, js(name)], is.arrayOf, array, expected);
 };
 is.notArrayOf = function (array, expected) {
  var ex = expected || 'undefined';
  var name = ex.name || ex;
  var fn = (expected && !isArrayOf(array, ex)) ? is.pass : is.fail;
  var op = 'is not an array of ' + ex + 's';
- return fn([deep(array), op, deep(name)], is.notArrayOf, array, expected);
+ return fn([js(array), op, js(name)], is.notArrayOf, array, expected);
 };
-function deep(data, stack) {
- if (data === null) {
-  data = 'null';
-  if (stack) {
-   data = data;
-  }
- }
- else if (typeof data == 'function') {
-  data = data.toString();
- }
- else if (data instanceof Date) {
-  data = '(new Date("' + data.toISOString() + '"))';
- }
- else if (data instanceof Error) {
-  data = '(new Error("' + (data.message || data.toString()).replace(/"/g, '\\"') + '"))';
- }
- else if (data instanceof RegExp) {
-  data = '/' + data.source + '/' +
-   (data.global ? 'g' : '') +
-   (data.ignoreCase ? 'i' : '') +
-   (data.multiline ? 'm' : '');
- }
- else if (typeof data == 'object') {
-  stack = stack || [];
-  var circular = 0;
-  stack.forEach(function (item, index) {
-   if ((item == data) && !circular) {
-    circular = -(index + 1);
-   }
-  });
-  if (circular) {
-   return '{_CIRCULAR:' + circular + '}';
-  }
-  stack.push(data);
-  var parts = [];
-  var text;
-  var isArray = (data instanceof Array);
-  if (stack.length > 10) {
-   data = (isArray ? '[Array]' : '[Object]');
-  }
-  else {
-   if (isArray) {
-    data.forEach(function (value) {
-     text = deep(value, stack);
-     parts.push(text);
-    });
-   }
-   else {
-    for (var key in data) {
-     var value = data[key];
-     text = key + ':' + deep(value, stack);
-     parts.push(text);
-    }
-   }
-   stack.pop();
-   data = parts.join(',');
-   if (isArray) {
-    data = '[' + data + ']';
-   }
-   else {
-    data = '{' + data + '}';
-   }
-  }
- }
- else {
-  if (typeof data == 'string') {
-   data = '"' + data.replace(/[\\"\n\r\t]/g, function (match) {
-    return '\\' + (
-     match == '\n' ? 'n' :
-     match == '\r' ? 'r' :
-     match == '\t' ? 't' :
-     match
-    );
-   }) + '"';
-  }
-  else {
-   data = '' + data;
-  }
- }
- return data;
-}
-Object.defineProperty(is, 'stringify', {
- enumerable: false,
- value: deep
-});
 var mockedObjects = [];
 var mockFs;
 global.mock = function mock(object, mockObject) {
@@ -1766,7 +1738,7 @@ exam.console = {
  start: function (options) {
   this.init(options);
   if (!options.hideAscii) {
-   var version = '0.1.4';
+   var version = '0.1.5';
    var art = [
     yellow + '  ' + grey + '  _',
     yellow + ' __' + grey + '(O)' + yellow + '__ ' + grey + '   _____           v' + version,
@@ -1923,7 +1895,7 @@ function formatStack(stack) {
      if (i == lineNumber) {
       char--;
       line = line.substr(0, char) + green + line.substr(char).replace(/(;?$)/, grey + '$1');
-      indent = '       ' + base + arrow;
+      indent = '       ' + red + arrow;
       pipe = grey + pipe + base;
      }
      var n = '' + i;
