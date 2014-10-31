@@ -61,8 +61,8 @@ describe('is', function () {
     is(is.stringify(Thing), Thing.toString());
     is(is.stringify(thing), '{what:\"what?\",hi:' + Thing.prototype.hi.toString() + '}');
     is(is.stringify({for:1}), '{for:1}');
-    is(is.stringify([[[[[[[[[[[1]]]]]]]]]]]), '[[[[[[[[[[[Array]]]]]]]]]]]');
-    is(is.stringify([[[[[[[[[[{}]]]]]]]]]]), '[[[[[[[[[[[Object]]]]]]]]]]]');
+    is(is.stringify([[[[[[[[[[[1]]]]]]]]]]]), '[[[[[[[[[[[1]]]]]]]]]]]');
+    is(is.stringify([[[[[[[[[[[{}]]]]]]]]]]]), '[[[[[[[[[[[{}]]]]]]]]]]]');
   });
 
   it('.is asserts strict equality', function () {
