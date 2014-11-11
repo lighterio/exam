@@ -1,4 +1,0 @@
---require ./lib/is
---require ./lib/mock
---reporter spec
---ui bdd

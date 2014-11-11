@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 var fs = require('fs');
 var tree = tree;
 var exam = module.exports = function (options) {
@@ -297,26 +298,24 @@ var exam = module.exports = function (options) {
   if (options.timestamp && reporter.timestamp) {
    reporter.timestamp();
   }
-  process.emit('exam:finished');
+  process.emit('exam:finished', data);
   if (options.grep || options.ignore) {
    end();
   }
   else {
    var times = data.times;
+   var files = manifest.files = manifest.files || {};
    for (var path in times) {
-    if (times.hasOwnProperty(path)) {
-     var newValue = times[path];
-     var entry = manifest.files[path] || {};
-     entry.runs = (entry.runs || 0) + 1;
-     for (var exponent = 0; exponent < 4; exponent++) {
-      var key = 'avg' + exponent;
-      var denominator = Math.min(entry.runs, Math.pow(10, exponent));
-      var newPortion = 1 / denominator;
-      var oldPortion = 1 - newPortion;
-      var oldValue = entry[key] || newValue;
-      entry[key] = newValue * newPortion + oldValue * oldPortion;
-     }
-     manifest.files[path] = entry;
+    var newValue = times[path];
+    var entry = files[path] = files[path] || {};
+    entry.runs = (entry.runs || 0) + 1;
+    for (var exponent = 0; exponent < 4; exponent++) {
+     var key = 'avg' + exponent;
+     var denominator = Math.min(entry.runs, Math.pow(10, exponent));
+     var newPortion = 1 / denominator;
+     var oldPortion = 1 - newPortion;
+     var oldValue = entry[key] || newValue;
+     entry[key] = newValue * newPortion + oldValue * oldPortion;
     }
    }
    mkdirp(cacheDir, function (e) {
@@ -343,21 +342,46 @@ var exam = module.exports = function (options) {
    options.done();
   }
   if ((process.mainModule == module) && !options.watch) {
-   process.exit();
+   process.exit(data.errors ? 1 : 0);
   }
  }
 };
-exam.version = '0.1.5';
+exam.version = '0.1.6';
 if ((process.mainModule == module) && !exam.options) {
  var examOptions = exam.options = exam.options || getOptions();
  process.nextTick(function () {
   (examOptions.files ? tree : exam)(examOptions);
  });
 }
-var Emitter = function () {};
-Emitter.prototype = {
- on: function on(type, fn) {
-  var events = this._events = this._events || {};
+var Type = function () {};
+Type.extend = function (properties) {
+ var type = properties.init || function () {
+  if (this.init) {
+   this.init.apply(this, arguments);
+  }
+ };
+ var parent = type.parent = this;
+ Type.decorate(type, parent);
+ Type.decorate(type.prototype, parent.prototype);
+ Type.decorate(type.prototype, properties);
+ return type;
+};
+Type.decorate = function (object, properties) {
+ properties = properties || this.prototype;
+ for (var key in properties) {
+  object[key] = properties[key];
+ }
+ return object;
+};
+var Emitter = Type.extend({
+ setMaxListeners: function (n) {
+  var self = this;
+  self.maxListeners = n;
+  return self;
+ },
+ on: function (type, fn) {
+  var self = this;
+  var events = self._events = self._events || {};
   var listeners = events[type];
   if (!listeners) {
    events[type] = fn;
@@ -368,153 +392,177 @@ Emitter.prototype = {
   else {
    listeners.push(fn);
   }
+  return self;
+ },
+ once: function (type, fn) {
+  var self = this;
+  function one() {
+   self.removeListener(type, one);
+   fn.apply(self, arguments);
+  }
+  self.on(type, one);
+  return self;
  },
  emit: function (type, data) {
-  var events = this._events;
+  var self = this;
+  var events = self._events;
   if (events) {
    var listeners = events[type];
    if (listeners) {
-    var n = arguments.length - 1;
-    if (n > 1) {
-     data = new Array(n);
-     while (n) {
-      data[--n] = arguments[n + 1];
-     }
+    var args;
+    if (arguments.length > 2) {
+     args = Array.prototype.slice.call(arguments, 1);
     }
     if (typeof listeners == 'function') {
-     if (n > 1) {
-      listeners.apply(this, args);
+     if (args) {
+      listeners.apply(self, args);
      }
      else {
-      listeners.call(this, data);
+      listeners.call(self, data);
      }
     }
     else {
      for (var i = 0, l = listeners.length; i < l; i++) {
-      if (n > 1) {
-       listeners[i].apply(this, args);
+      if (args) {
+       listeners[i].apply(self, args);
       }
       else {
-       listeners[i].call(this, data);
+       listeners[i].call(self, data);
       }
      }
     }
    }
   }
- }
-};
-Emitter.extend = function (emitter) {
- var proto = Emitter.prototype;
- emitter = emitter || {};
- for (var key in proto) {
-  if (proto.hasOwnProperty(key)) {
-   emitter[key] = proto[key];
+  return self;
+ },
+ removeListener: function (type, fn) {
+  var self = this;
+  var events = self._events;
+  if (events) {
+   var listeners = events[type];
+   if (listeners == fn) {
+    delete events[type];
+    self.emit('removeListener', type, fn);
+   }
+   else if (typeof listeners == Array) {
+    for (var i = 0, l = listeners.length; i < l; i++) {
+     if (listeners[i] == fn) {
+      listeners.splice(i, 1);
+      return self.emit('removeListener', type, fn);
+     }
+    }
+   }
   }
+  return self;
+ },
+ removeAllListeners: function (type) {
+  var self = this;
+  var events = self._events;
+  if (events) {
+   if (type) {
+    delete events[type];
+   }
+   else {
+    delete self._events;
+   }
+  }
+  return self;
  }
- return emitter;
-};
+});
 var path = require('path');
-var mkdirp = function (p, m, f) {
- p = path.resolve(p);
- if (typeof m == 'function') {
-  f = m;
-  m = 493;
+var resolve = path.resolve;
+var dirname = path.dirname;
+var mkdirp = function (path, mode, fn) {
+ path = resolve(path);
+ if (typeof mode == 'function') {
+  fn = mode;
+  mode = 493;
  }
- mk(p, m, f || function () {});
+ mk(path, mode, fn || function () {});
 };
-mkdirp.fs = require('fs');
-function mk(p, m, f, d) {
- mkdirp.fs.mkdir(p, m, function (e) {
-  if (!e) {
-   d = d || p;
-   f(null, d);
+function mk(path, mode, fn, dir) {
+ mkdirp.fs.mkdir(path, mode, function (error) {
+  if (!error) {
+   dir = dir || path;
+   fn(null, dir);
   }
-  else if (e.code == 'ENOENT') {
-   mk(path.dirname(p), m, function (e, d) {
-    if (e) {
-     f(e, d);
+  else if (error.code == 'ENOENT') {
+   mk(dirname(path), mode, function (error, dir) {
+    if (error) {
+     fn(error, dir);
     }
     else {
-     mk(p, m, f, d);
+     mk(path, mode, fn, dir);
     }
    });
   }
   else {
-   mkdirp.fs.stat(p, function (e2, stat) {
-    f((e2 || !stat.isDirectory()) ? e : null, d);
+   mkdirp.fs.stat(path, function (statError, stat) {
+    fn((statError || !stat.isDirectory()) ? error : null, dir);
    });
   }
  });
 }
-JSON.scriptify = js;
-JSON.eval = function (s) {
- try {
-  eval('eval.o=' + s);
-  return eval.o;
+mkdirp.fs = require('fs');
+var scriptify = JSON.scriptify = function (value, stack) {
+ var type = typeof value;
+ if (type == 'function') {
+  return value.toString();
  }
- catch (e) {
-  eval.e = e;
- }
-};
-function js(v, a) {
- var t = typeof v;
- if (t == 'function') {
-  return v.toString();
- }
- if (t == 'string') {
-  return '"' + v.replace(/["\t\n\r]/g, function (c) {
-   return c == '"' ? '\\"' : c == '\t' ? '\\t' : c == '\n' ? '\\n' : '';
+ if (type == 'string') {
+  return '"' + value.replace(/["\t\n\r]/g, function (char) {
+   return char == '"' ? '\\"' : char == '\t' ? '\\t' : char == '\n' ? '\\n' : '';
   }) + '"';
  }
- if (t == 'object' && v) {
-  if (v instanceof Date) {
-   return 'new Date(' + v.getTime() + ')';
+ if (type == 'object' && value) {
+  if (value instanceof Date) {
+   return 'new Date(' + value.getTime() + ')';
   }
-  if (v instanceof Error) {
-   return '(function(){var e=new Error(' + js(v.message) + ');' +
-    'e.stack=' + js(v.stack) + ';return e})()';
+  if (value instanceof Error) {
+   return '(function(){var e=new Error(' + scriptify(value.message) + ');' +
+    'e.stack=' + scriptify(value.stack) + ';return e})()';
   }
-  if (v instanceof RegExp) {
-   return '/' + v.source + '/' +
-    (v.global ? 'g' : '') +
-    (v.ignoreCase ? 'i' : '') +
-    (v.multiline ? 'm' : '');
+  if (value instanceof RegExp) {
+   return '/' + value.source + '/' +
+    (value.global ? 'g' : '') +
+    (value.ignoreCase ? 'i' : '') +
+    (value.multiline ? 'm' : '');
   }
-  var i, l;
-  if (a) {
-   l = a.length;
-   for (i = 0; i < l; i++) {
-    if (a[i] == v) {
-     return '{"^":' + (l - i) + '}';
+  var i, length;
+  if (stack) {
+   length = stack.length;
+   for (i = 0; i < length; i++) {
+    if (stack[i] == value) {
+     return '{"^":' + (length - i) + '}';
     }
    }
   }
-  (a = a || []).push(v);
-  var s;
-  if (v instanceof Array) {
-   s = '[';
-   l = v.length;
-   for (i = 0; i < l; i++) {
-    s += (i ? ',' : '') + js(v[i], a);
+  (stack = stack || []).push(value);
+  var string;
+  if (value instanceof Array) {
+   string = '[';
+   length = value.length;
+   for (i = 0; i < length; i++) {
+    string += (i ? ',' : '') + scriptify(value[i], stack);
    }
-   a.pop();
-   return s + ']';
+   stack.pop();
+   return string + ']';
   }
   else {
    var i = 0;
-   s = '{';
-   for (var k in v) {
-    s += (i ? ',' : '') +
-     (/^[$_a-z][\w$]*$/i.test(k) ? k : '"' + k + '"') +
-     ':' + js(v[k], a);
+   string = '{';
+   for (var key in value) {
+    string += (i ? ',' : '') +
+     (/^[$_a-z][\w$]*$/i.test(key) ? key : '"' + key + '"') +
+     ':' + scriptify(value[key], stack);
     i++;
    }
-   a.pop();
-   return s + '}';
+   stack.pop();
+   return string + '}';
   }
  }
- return '' + v;
-}// Throw assertion errors, like any well-behaving assertion library.
+ return '' + value;
+};
 var AssertionError = require('assert').AssertionError;
 function is(actual, expected) {
  var fn = (actual === expected) ? is.pass : is.fail;
@@ -1295,7 +1343,7 @@ var tree = function (options) {
   var parsingPath = '';
   Module._resolveFilename = function () {
    var path = resolve.apply(Module, arguments);
-   if (path.indexOf('node_modules') < 0) {
+   if (path[0] == '/' && path.indexOf('/node_modules/') < 0) {
     parsingPath = path;
    }
    return path;
@@ -1303,11 +1351,12 @@ var tree = function (options) {
   Module.wrap = function (script) {
    if (parsingPath) {
     var error;
+    var wrapped = 'var f=function(){' + script + '}';
     try {
-     eval('var f=function(){' + script + '}');
+     eval(wrapped);
     }
     catch (e) {
-     parser.parse(script);
+     parser.parse(wrapped);
     }
     parsingPath = '';
    }
@@ -1316,6 +1365,7 @@ var tree = function (options) {
   };
  }
  process.on('uncaughtException', function (error) {
+  console.log(error);
   fail(context, error);
   next();
  });
@@ -1324,7 +1374,7 @@ var tree = function (options) {
   process.exit();
  });
  if (!options.assertive) {
-  Emitter.extend(is);
+  Emitter.decorate(is);
   is.on('result', function (result) {
    if (result instanceof Error) {
     fail(context, result);
@@ -1347,23 +1397,28 @@ var tree = function (options) {
   if (e && !context.error) {
    root.bail = options.bail;
    var stack = e.stack;
-   if (stack == e.toString()) {
+   if (stack == e.toString() || typeof stack != 'string') {
     e = new Error(e);
     Error.captureStackTrace(e, arguments.callee);
     stack = e.stack;
    }
    if (parsingPath) {
     stack = stack.replace(parserExp, function (match, slice) {
-     var pos = parsingPath + ':';
+     var pos = [parsingPath];
      if (e.loc) {
       slice = slice.replace(/ ?\(\d+:\d+\)\n/, '\n');
-      pos += e.loc.line + ':' + (e.loc.column + 1);
+      pos[1] = e.loc.line;
+      pos[2] = e.loc.column + 1;
      }
      else {
       slice = slice.replace(/^Error: Line \d+/, 'SyntaxError');
-      pos += e.lineNumber + ':' + e.column;
+      pos[1] = e.lineNumber;
+      pos[2] = e.column;
      }
-     return slice.replace(/\n/, '\n    at script (' + pos + ')\n');
+     if (pos[1] == 1) {
+      pos[2] -= 17;
+     }
+     return slice.replace(/\n/, '\n    at ' + pos.join(':') + '\n');
     });
     parsingPath = '';
    }
@@ -1526,7 +1581,7 @@ var tree = function (options) {
      ctx.timeout(ctx.timeLimit);
      try {
       fn.call(ctx, function (e) {
-       if (e && !ctx.error) {
+       if ((e instanceof Error) && !ctx.error) {
         fail(ctx, e);
        }
        else if (isDone && !ctx.error) {
@@ -1610,6 +1665,10 @@ var tree = function (options) {
    filterFunction(fn, 'skip');
   }
  });
+ global.iit = it.only;
+ global.xit = it.skip;
+ global.ddescribe = describe.only;
+ global.xdescribe = describe.skip;
  global.before = global.setup = function (fn) {
   addSuiteFunction(suite, 'before', fn);
  };
@@ -1738,7 +1797,7 @@ exam.console = {
  start: function (options) {
   this.init(options);
   if (!options.hideAscii) {
-   var version = '0.1.5';
+   var version = '0.1.6';
    var art = [
     yellow + '  ' + grey + '  _',
     yellow + ' __' + grey + '(O)' + yellow + '__ ' + grey + '   _____           v' + version,
@@ -1862,6 +1921,9 @@ function formatStack(stack) {
  stack = stack.replace(
   /\n +at ([^:\n]+ \(|)(\/[^:]+\/)([^\/:]+):(\d+):(\d+)(\)?)/g,
   function (match, start, path, file, line, char, end) {
+   if ((file == 'exam.js') && /\/exam\/$/.test(path)) {
+    return match;
+   }
    var shortPath = path;
    for (var i = 0; i < 2; i++) {
     var dir = dirs[i];

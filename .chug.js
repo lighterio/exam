@@ -3,9 +3,10 @@ var pkg = require('./package');
 
 chug([
   'lib/_exam.js',
-  'lib/common/emitter.js',
-  'lib/common/mkdirp.js',
-  'lib/common/scriptify.js',
+  'common/object/type.js',
+  'common/event/emitter.js',
+  'common/fs/mkdirp.js',
+  'common/json/scriptify.js',
   'lib/is.js',
   'lib/mock.js',
   'lib/options.js',
@@ -20,16 +21,17 @@ chug([
     function one(match) {
       return one[match] ? '' : one[match] = match;
     }
+    asset.replace('#!/usr/bin/env node', '');
     asset.replace(/\s+\/\/[^\n]+/g, '');
     asset.replace(/\/\*[\s\S]*?\*\/\s+/g, '');
     asset.replace(/var fs = require\('fs'\);\n/g, one);
     asset.replace(/module\.exports = /g, one);
     asset.replace(/delete require\.cache\[runPath\];\s+require\(runPath\)/, 'run');
     asset.replace(/require\('\.[^']*\/(tree)'\)/g, '$1');
-    asset.replace(/require\('\.[^']*\/(scriptify)'\);/g, '');
+    asset.replace(/require\('\.[^']*\/(scriptify)(\.js)?'\);/g, '');
     asset.replace(/var ([a-z]+)Reporter/g, 'exam.$1');
     asset.replace(/require\([^\)]+(options\.reporter)\);/g, 'exam[$1];');
-    asset.replace(/var (Emitter|tree|mkdirp) = require[^\n]+/g, '');
+    asset.replace(/var (Type|Emitter|tree|mkdirp) = require[^\n]+/g, '');
     asset.replace(/global\.(is|mock) = require\('\.\/\1'\);/g, '');
     asset.replace(/require\('[^\)]+\/package\.json'\)\.version/g, "'" + pkg.version + "'");
     asset.replace(/require\('[^\)]+\/options'\)/g, 'exam.options || getOptions');
@@ -37,5 +39,6 @@ chug([
       var l = Math.floor(s.length / 2);
       return '\n' + s.substr(0, l);
     });
+    asset.replace(/^/, '#!/usr/bin/env node\n');
   })
   .write(__dirname, 'exam.js');
