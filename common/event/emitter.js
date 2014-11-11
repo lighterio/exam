@@ -12,7 +12,7 @@
  *   deleted if you remove all listeners.
  *
  * @origin lighter-common/common/events/emitter.js
- * @version 0.0.2
+ * @version 0.0.3
  */
 
 var Type = require('../object/type');
@@ -99,6 +99,16 @@ var Emitter = module.exports = Type.extend({
       }
     }
     return self;
+  },
+
+  /**
+   * Return an array of listeners for an event type.
+   */
+  listeners: function (type) {
+    var self = this;
+    var events = self._events;
+    var list = events ? events[type] : undefined;
+    return !list ? [] : list instanceof Array ? list : [list];
   },
 
   /**
