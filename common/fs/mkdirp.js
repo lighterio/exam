@@ -2,7 +2,7 @@
  * Asynchronous recursive mkdir, like `mkdir -p`.
  *
  * @origin lighter-common/common/fs/mkdirp.js
- * @version 0.0.1
+ * @version 0.0.2
  */
 
 var path = require('path');
@@ -13,7 +13,7 @@ var mkdirp = module.exports = function (path, mode, fn) {
   path = resolve(path);
   if (typeof mode == 'function') {
     fn = mode;
-    mode = 493; // 0777
+    mode = 0777 & (~mkdirp.umask);
   }
   mk(path, mode, fn || function () {});
 };
@@ -44,3 +44,6 @@ function mk(path, mode, fn, dir) {
 
 // Allow a user to specify a custom file system.
 mkdirp.fs = require('fs');
+
+// Allow the umask to be changed externally.
+mkdirp.umask = process.umask();
