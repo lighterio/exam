@@ -1976,7 +1976,13 @@ var tree = function (options) {
       }
      }
     case AFTER:
-     fns = (isSuite ? node.after : prep[1]);
+     if (isSuite) {
+      fns = node.after;
+      context = node;
+     }
+     else {
+      fns = prep[1];
+     }
      if (fns) break;
      node.phase = END;
     case END:
