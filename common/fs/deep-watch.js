@@ -22,7 +22,9 @@ var deepWatch = module.exports = function (dir, options) {
   var child = fork(__filename, [JSON.stringify(options)], {
     silent: true
   });
+  // When a change occurs, make sure the new version of the file gets loaded.
   child.on('message', function (path) {
+    delete require.cache[path];
     watcher.emit('change', path);
   });
   return watcher;
