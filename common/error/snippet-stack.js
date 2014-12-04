@@ -66,6 +66,6 @@ var snippetStack = module.exports = function (stack, options) {
       return message;
     }
   );
-  stack = stack.replace(/(\n +at )(\S+ )?/g, '\n' + indent + 'at ' + colors.base + '$2' + colors.gray);
+  stack = stack.replace(/(\n +at )(\S+ )?/g, '\n' + indent + 'at '.gray + '$2' + colors.gray);
   return colors[color] + stack;
 };
