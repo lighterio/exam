@@ -49,4 +49,6 @@ chug([
     });
     asset.replace(/^/, '#!/usr/bin/env node\n');
   })
-  .write(__dirname, 'exam.js');
+  .write(__dirname, 'exam.js')
+  .replace('usr/bin/env node', 'usr/bin/env iojs')
+  .write(__dirname, 'exam-iojs.js');

@@ -7,11 +7,8 @@
 [![Support](https://img.shields.io/gratipay/Lighter.io.svg)](https://gratipay.com/Lighter.io/)
 
 
-## TL;DR
-
-Exam is a JavaScript test runner, designed to be fast and easy.
-
-### Powerful features
+Exam is a JavaScript test runner, designed to be fast and easy. Its powerful
+features are designed to give you everything you need for testing:
 * A terse assertion library called `is` (or use your own).
 * A fast mocking library called `mock` (or use your own).
 * Tests can be distributed across CPUs for speed.
