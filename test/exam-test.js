@@ -1,8 +1,6 @@
 var exam = require('../exam');
 var pkg = require('../package');
 
-require('zeriousify').test();
-
 describe('Exam', function () {
 
   it('runs tests', function (done) {
@@ -12,9 +10,12 @@ describe('Exam', function () {
   it('logs a line break and kills the process on SIGINT', function (done) {
     mock(process, {
       exit: function () {
-        unmock(process);
+        unmock();
         done();
       }
+    });
+    mock(process.stdout, {
+      write: mock.concat()
     });
     process.emit('SIGINT');
   });

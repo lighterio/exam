@@ -1,17 +1,16 @@
 {
   "name": "exam",
-  "version": "0.1.5",
+  "version": "0.2.1",
   "description": "Clustered JavaScript test runner with builtin assertions",
   "dependencies": {
     "acorn": "0.9.0",
-    "mock-fs": "2.3.1"
+    "mock-fs": "^2.3.2"
   },
   "devDependencies": {
     "coveralls": "2.11.1",
     "esprima": "1.2.2",
     "istanbul": "0.3.0",
-    "zeriousify": "^0.1.10",
-    "chug": "^0.2.1"
+    "chug": "^0.3.0"
   },
   "keywords": [
     "exam",
@@ -24,13 +23,14 @@
   "main": "exam.js",
   "bin": {
     "exam": "exam.js",
+    "exam-iojs": "exam-iojs.js",
     "_exam": "lib/_exam.js"
   },
   "engines": {
     "node": ">=0.2.6"
   },
   "scripts": {
-    "build": "node .chug",
+    "build": "node .chug.js",
     "test": "./exam.js",
     "cover": "./node_modules/istanbul/lib/cli.js cover ./exam.js",
     "report": "open coverage/lcov-report/index.html",

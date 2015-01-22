@@ -11,7 +11,7 @@ function invoke(options, done) {
   exam(options);
 }
 
-describe.skip('Scenarios', function () {
+xdescribe('Scenarios', function () {
 
   describe('Empty scenario', function () {
     it('runs with options', function (done) {

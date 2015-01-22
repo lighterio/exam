@@ -7,14 +7,12 @@
 [![Support](https://img.shields.io/gratipay/Lighter.io.svg)](https://gratipay.com/Lighter.io/)
 
 
-## TL;DR
-
-Exam is a JavaScript test runner, designed to be fast and easy.
-
-### Powerful features
+Exam is a JavaScript test runner, designed to be fast and easy. Its powerful
+features are designed to give you everything you need for testing:
 * A terse assertion library called `is` (or use your own).
 * A fast mocking library called `mock` (or use your own).
 * Tests can be distributed across CPUs for speed.
+* Deferred alert/debug/trace.
 
 ### Quick Start
 
@@ -23,7 +21,7 @@ Install `exam`:
 sudo npm install -g exam
 ```
 
-Write some tests in `YourApp/test`:
+Write some tests in `test/*`:
 ```js
 var a = [1, 2, 3];
 describe('Array.indexOf()', function () {
@@ -46,28 +44,68 @@ exam
 
 ## Test Functions
 
-Exam exposes global functions which you can use in your tests.
+Exam exposes functions which you can use in your tests. By default, all of
+these are available on the global scope. To keep global scope clean instead,
+use the `--no-globals` or `-G` command line option.
 
-### describe(title, fn)
+### Suites and Tests
+
+#### describe(title, fn)
 Runs `fn` as a suite of tests.
 
-### it(name, fn)
+#### ddescribe(title, fn)
+Runs `fn` exclusively. Aliased as `describe.only`.
+
+#### xdescribe(title, fn)
+Sets up a suite but skips it. Aliased as `describe.skip`.
+
+#### it(name, fn)
 Runs `fn` as a test for the named functionality.
 
-### is(actual, expected)
+#### iit(name, fn)
+Runs `fn` exclusively. Aliased as `it.only`.
+
+#### xit(name, fn)
+Sets up a test but skips it. Aliased as `it.skip`.
+
+#### before(fn)
+Runs `fn`** before a suite.
+
+#### beforeEach(fn)
+Runs `fn` before each test in a suite.
+
+#### after(fn)
+Runs `fn` after a suite.
+
+#### afterEach(fn)
+Runs `fn` after each test in a suite.
+
+#### setup/teardown
+Aliases for before/after.
+
+### Assertions and Mocks
+
+#### is(actual, expected)
 Asserts equality.
 
-### before(fn)
-Runs `fn`** before a suite.<br>
+#### mock(object, properties)
+Temporarily decorates an object with values from a mock properties object.
 
-### beforeEach(fn)
-Runs `fn` before each test in a suite.<br>
+#### unmock([object])
+Restores the original properties of a mocked object (or all mocked objects).
 
-### after(fn)
-Runs `fn` after a suite.<br>
+### Logs
 
-### afterEach(fn)
-Runs `fn` after each test in a suite.<br>
+#### alert(arguments...)
+Stores arguments to be logged after the test run finishes.
+
+#### debug(arguments...)
+Stores arguments to be logged after the test run finishes, if called from
+within a failing test or suite.
+
+#### trace(arguments...)
+Stores arguments and a stack trace to be logged after the test run finishes,
+if called from within a failing test or suite.
 
 
 ## Assertions
@@ -603,22 +641,90 @@ Exam can be run using the command line interface, or by requiring the module.
 
 ### Command line
 
-To install the CLI, install exam globally (using sudo if your environment
+Install exam globally (using sudo if your environment
 requires root access to install a Node binary):
 
 ```bash
-npm install -g exam
+sudo npm install -g exam
 ```
 
-Then to run the command line, use a command such as this to run all tests
-under inside the `test` folder of the current working directory and re-run
-upon changes to files:
+#### Usage
 ```
-exam --watch test
+exam [options] [paths...]
 ```
 
-The last argument is optional (and multiple paths are allowed). If omitted,
-the path is assumed to be `test`.
+For example, to run "test/a-test.js" and "test/b-test.js" in multiple processes and watch for changes:
+```bash
+exam --multi-process --watch test/a-test test/b-test
+```
+
+If there are no `paths` arguments, the path is assumed to be `test`, so test files include all files directly under the `test` directory.
+
+#### Options
+
+
+**-h, --help**<br>
+Show usage information only.
+
+**-w, --watch**<br>
+Keep the process running, watch for file changes, and re-run tests
+when a change is detected.
+
+**-V, --version**<br>
+Show the version number.
+
+**-r, --require <modules>**<br>
+Require a comma-delimited list of modules.
+
+**-R, --reporter <name>**<br>
+Which library will be used to output results. Options include "console",
+"tap", "xunit" and "counts". *Default: "console"*.
+
+**-G, --no-globals**<br>
+Do not add functions such as `it` and `describe` to the global scope. Instead, add those functions to the `exam` object.
+
+**-v, --recursive**<br>
+Use the default `test` directory, or any directories specified as `paths`, and read their contents recursively, running any encountered files as tests.
+
+**-p, --parser <parser>**<br>
+Which EcmaScript parser will be used to handle syntax errors. Options include
+"acorn" and "esprima". *Default: "acorn"*.
+
+**-b, --bail**<br>
+Exit after the first test failure.
+
+**-a, --assertive**<br>
+Stop a test after one failed assertion.
+
+**-g, --grep <regexp>**<br>
+Only run files/tests that match a regular expressi. (RegExp)',
+
+**-i, --ignore <regexp>**<br>
+Exclude files/tests that match a regular expressi. (RegExp)',
+
+**-d, --debug**<br>
+Run `node` with the --debug flag.
+
+**-m, --multi-process**<br>
+Spawn child processes, creating a cluster of test runners.
+
+**-t, --timeout <millis>**<br>
+Test case timeout in milliseconds (Number) [1000].
+
+**-s, --slow <millis>**<br>
+Slow test (yellow warning) threshold in millisecon. (Number) [10]',
+
+**-S, --very-slow <millis>**<br>
+Very slow (red warning) threshold in milliseconds (Numbe. [100]',
+
+**-A, --hide-ascii**<br>
+Do not show ASCII art before the run.
+
+**-P, --hide-progress**<br>
+Do not show dots as tests run.
+
+**-C, --no-colors**<br>
+Turn off color console logging.
 
 ### Module
 
@@ -633,24 +739,6 @@ exam({
   watch: true
 });
 ```
-
-### Options
-
-#### -R, --reporter
-Which library will be used to output results. Options include "console",
-"tap", "xunit" and "counts". **Default: "console"**.
-
-#### -p, --parser
-Which EcmaScript parser will be used to handle syntax errors. Options include
-"acorn" and "esprima". **Default: "acorn"**.
-
-#### -w, --watch
-Whether to keep the process running, watch for file changes, and re-run tests
-when a change is detected. **Default: false**.
-
-#### -c, --cluster
-Whether to spawn child processes, creating a cluster of test runners.
-**Default: true**.
 
 
 ## Acknowledgements
