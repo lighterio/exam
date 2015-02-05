@@ -90,7 +90,6 @@ JSON.colorize = module.exports = function (data, stack, space, indent, maxWidth,
             }
           }
         }
-        stack.pop();
         if (space) {
           if (parts.length) {
             length += (parts.length - 1) * 2;
@@ -112,6 +111,7 @@ JSON.colorize = module.exports = function (data, stack, space, indent, maxWidth,
           data = '{'.gray + data + '}'.gray;
         }
       }
+      stack.pop();
     }
   }
   else if (stack && !color) {

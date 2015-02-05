@@ -8,7 +8,7 @@
 
 
 Exam is a JavaScript test runner, designed to be fast and easy. Its powerful
-features are designed to give you everything you need for testing:
+features are designed to give you everything you need for testing, and more:
 * A terse assertion library called `is` (or use your own).
 * A fast mocking library called `mock` (or use your own).
 * Tests can be distributed across CPUs for speed.
@@ -634,6 +634,13 @@ mock({
 
 Restores the properties which belonged to the object prior to being mocked.
 
+## Benchmarking
+
+### bench(name, fn)
+
+The bench function is similar to `describe`. It sets up a suite that can
+contain multiple tests to be run against each other. The individual tests
+are
 
 ## Running exam
 
@@ -725,6 +732,7 @@ Do not show dots as tests run.
 
 **-C, --no-colors**<br>
 Turn off color console logging.
+
 
 ### Module
 

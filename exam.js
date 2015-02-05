@@ -293,7 +293,7 @@ var exam = module.exports = function (options) {
   }
  }
 };
-exam.version = '0.2.1';
+exam.version = '0.2.2';
 if (process.mainModule == module) {
  process.nextTick(function () {
   var options = cli({
@@ -333,7 +333,7 @@ if (process.mainModule == module) {
   (options.files ? tree : exam)(options);
  });
 }
-var Type = function () {};
+;var Type = function () {};
 Type.extend = function (properties) {
  var type = properties.init || function () {
   if (this.init) {
@@ -353,6 +353,7 @@ Type.decorate = function (object, properties) {
  }
  return object;
 };
+;
 var Emitter = Type.extend({
  setMaxListeners: function (max) {
   var self = this;
@@ -469,9 +470,16 @@ var Emitter = Type.extend({
    }
   }
   return self;
+ },
+ one: function (type, fn) {
+  var self = this;
+  var events = self._events = self._events || {};
+  events[type] = fn;
+  return self;
  }
 });
 Emitter.defaultMaxListeners = 10;
+;
 var snippetStack = function (stack, options) {
  var arrow = (process.platform == 'win32' ? '\u2192' : '\u279C') + ' ';
  options = options || 0;
@@ -530,7 +538,7 @@ var snippetStack = function (stack, options) {
  stack = stack.replace(/(\n +at )(\S+ )?/g, '\n' + indent + 'at '.gray + '$2' + colors.gray);
  return colors[color] + stack;
 };
-var path = require('path');
+;var path = require('path');
 var resolve = path.resolve;
 var dirname = path.dirname;
 var mkdirp = function (path, mode, fn) {
@@ -566,7 +574,7 @@ function mk(path, mode, fn, dir) {
 }
 mkdirp.fs = require('fs');
 mkdirp.umask = process.umask();
-var shortenPath = function (path) {
+;var shortenPath = function (path) {
  var dirs = shortenPath.dirs;
  for (var i = 0; i < 2; i++) {
   var dir = dirs[i];
@@ -580,6 +588,121 @@ shortenPath.dirs = [
  [process.cwd() + '/', './'],
  [process.env.HOME + '/', '~/']
 ];
+;if (!JSON.nativeStringify) {
+ var nativeStringify = JSON.nativeStringify = JSON.stringify;
+ var stringify = function (value, stack, space) {
+  var string;
+  if (value === null) {
+   return 'null';
+  }
+  if (typeof value != 'object') {
+   return nativeStringify(value);
+  }
+  var length = stack.length;
+  for (var i = 0; i < length; i++) {
+   if (stack[i] == value) {
+    return '"[Circular ' + (length - i) + ']"';
+   }
+  }
+  stack.push(value);
+  var isArray = (value instanceof Array);
+  var list = [];
+  var json;
+  if (isArray) {
+   length = value.length;
+   for (i = 0; i < length; i++) {
+    json = stringify(value[i], stack, space);
+    if (json != undefined) {
+     list.push(json);
+    }
+   }
+  }
+  else {
+   for (var key in value) {
+    json = stringify(value[key], stack, space);
+    if (json != undefined) {
+     key = nativeStringify(key) + ':' + (space ? ' ' : '');
+     list.push(key + json);
+    }
+   }
+  }
+  if (space && list.length) {
+   var indent = '\n' + (new Array(stack.length)).join(space);
+   var indentSpace = indent + space;
+   list = indentSpace + list.join(',' + indentSpace) + indent;
+  }
+  else {
+   list = list.join(',');
+  }
+  value = isArray ? '[' + list + ']' : '{' + list + '}';
+  stack.pop();
+  return value;
+ };
+ JSON.stringify = function (value, replacer, space) {
+  return replacer ?
+   nativeStringify(value, replacer, space) :
+   stringify(value, [], space);
+ };
+}
+JSON.stringify;
+;var scriptify = JSON.scriptify = function (value, stack) {
+ var type = typeof value;
+ if (type == 'function') {
+  return value.toString();
+ }
+ if (type == 'string') {
+  return JSON.stringify(value);
+ }
+ if (type == 'object' && value) {
+  if (value instanceof Date) {
+   return 'new Date(' + value.getTime() + ')';
+  }
+  if (value instanceof Error) {
+   return '(function(){var e=new Error(' + scriptify(value.message) + ');' +
+    'e.stack=' + scriptify(value.stack) + ';return e})()';
+  }
+  if (value instanceof RegExp) {
+   return '/' + value.source + '/' +
+    (value.global ? 'g' : '') +
+    (value.ignoreCase ? 'i' : '') +
+    (value.multiline ? 'm' : '');
+  }
+  var i, length;
+  if (stack) {
+   length = stack.length;
+   for (i = 0; i < length; i++) {
+    if (stack[i] == value) {
+     return '{"^":' + (length - i) + '}';
+    }
+   }
+  }
+  (stack = stack || []).push(value);
+  var string;
+  if (value instanceof Array) {
+   string = '[';
+   length = value.length;
+   for (i = 0; i < length; i++) {
+    string += (i ? ',' : '') + scriptify(value[i], stack);
+   }
+   stack.pop();
+   return string + ']';
+  }
+  else {
+   var i = 0;
+   string = '{';
+   for (var key in value) {
+    string += (i ? ',' : '') +
+     (/^[$_a-z][\w$]*$/i.test(key) ? key : '"' + key + '"') +
+     ':' + scriptify(value[key], stack);
+    i++;
+   }
+   stack.pop();
+   return string + '}';
+  }
+ }
+ return '' + value;
+};
+;
 JSON.colorize = function (data, stack, space, indent, maxWidth, maxDepth) {
  maxWidth = maxWidth || 80;
  maxDepth = maxDepth || 5;
@@ -662,7 +785,6 @@ JSON.colorize = function (data, stack, space, indent, maxWidth, maxDepth) {
       }
      }
     }
-    stack.pop();
     if (space) {
      if (parts.length) {
       length += (parts.length - 1) * 2;
@@ -684,6 +806,7 @@ JSON.colorize = function (data, stack, space, indent, maxWidth, maxDepth) {
      data = '{'.gray + data + '}'.gray;
     }
    }
+   stack.pop();
   }
  }
  else if (stack && !color) {
@@ -704,64 +827,7 @@ JSON.colorize = function (data, stack, space, indent, maxWidth, maxDepth) {
  data = '' + data;
  return color ? data[color] : data;
 };
-var scriptify = JSON.scriptify = function (value, stack) {
- var type = typeof value;
- if (type == 'function') {
-  return value.toString();
- }
- if (type == 'string') {
-  return JSON.stringify(value);
- }
- if (type == 'object' && value) {
-  if (value instanceof Date) {
-   return 'new Date(' + value.getTime() + ')';
-  }
-  if (value instanceof Error) {
-   return '(function(){var e=new Error(' + scriptify(value.message) + ');' +
-    'e.stack=' + scriptify(value.stack) + ';return e})()';
-  }
-  if (value instanceof RegExp) {
-   return '/' + value.source + '/' +
-    (value.global ? 'g' : '') +
-    (value.ignoreCase ? 'i' : '') +
-    (value.multiline ? 'm' : '');
-  }
-  var i, length;
-  if (stack) {
-   length = stack.length;
-   for (i = 0; i < length; i++) {
-    if (stack[i] == value) {
-     return '{"^":' + (length - i) + '}';
-    }
-   }
-  }
-  (stack = stack || []).push(value);
-  var string;
-  if (value instanceof Array) {
-   string = '[';
-   length = value.length;
-   for (i = 0; i < length; i++) {
-    string += (i ? ',' : '') + scriptify(value[i], stack);
-   }
-   stack.pop();
-   return string + ']';
-  }
-  else {
-   var i = 0;
-   string = '{';
-   for (var key in value) {
-    string += (i ? ',' : '') +
-     (/^[$_a-z][\w$]*$/i.test(key) ? key : '"' + key + '"') +
-     ':' + scriptify(value[key], stack);
-    i++;
-   }
-   stack.pop();
-   return string + '}';
-  }
- }
- return '' + value;
-};
-JSON.eval = function (js, fallback) {
+;JSON.eval = function (js, fallback) {
  delete JSON.eval.error;
  try {
   eval('JSON.eval.value=' + js);
@@ -773,6 +839,7 @@ JSON.eval = function (js, fallback) {
   return fallback;
  }
 };
+;
 JSON.readStream = function (stream, event) {
  var data = '';
  stream.on('data', function (chunk) {
@@ -794,14 +861,23 @@ JSON.readStream = function (stream, event) {
  });
  return stream;
 };
+;
 JSON.writeStream = function (stream) {
  var write = stream.write;
  stream.write = function (object) {
   var js = JSON.scriptify(object);
-  write.call(stream, js + '\n');
+  if (stream.writable) {
+   write.call(stream, js + '\n');
+  }
+  else {
+   stream.once('drain', function () {
+    write.call(stream, js + '\n');
+   });
+  }
  };
  return stream;
 };
+;
 var argv = process.argv.slice(2);
 var cli = function cli(config) {
  config = config || {};
@@ -1009,7 +1085,7 @@ cli.options = function (config) {
  }
  return args;
 };
-var colors = {
+;var colors = {
  reset: '\u001b[0m',
  base: '\u001b[39m',
  bgBase: '\u001b[49m',
@@ -1094,6 +1170,7 @@ define('bgBlue', function () { return enableColors ? '\u001b[44m' + this + '\u00
 define('bgMagenta', function () { return enableColors ? '\u001b[45m' + this + '\u001b[49m' : this; });
 define('bgCyan', function () { return enableColors ? '\u001b[46m' + this + '\u001b[49m' : this; });
 define('bgWhite', function () { return enableColors ? '\u001b[47m' + this + '\u001b[49m' : this; });
+;// Throw assertion errors, like any well-behaving assertion library.
 var AssertionError = require('assert').AssertionError;
 function is(actual, expected) {
  var fn = (actual === expected) ? is.pass : is.fail;
@@ -1410,7 +1487,7 @@ is.notArrayOf = function (array, expected) {
  var op = 'is not an array of ' + ex + 's';
  return fn([js(array), op, js(name)], is.notArrayOf, array, expected);
 };
-var mockedObjects = [];
+;var mockedObjects = [];
 var mockFs;
 var mock = function mock(object, mockObject) {
  var mocked = object._EXAM_MOCKED_ORIGINALS;
@@ -1719,6 +1796,7 @@ unmock.time = function () {
   return mockFs[method].apply(mockFs, arguments);
  };
 });
+;
 var tree = function (options) {
  options = options || exam.options || getOptions();
  var grep = options.grep;
@@ -1859,7 +1937,10 @@ var tree = function (options) {
  }
  function Node(name, fn, only, skip) {
   var node = this;
-  node.parent = suite;
+  Object.defineProperty(node, 'parent', {
+   enumerable: false,
+   value: suite
+  });
   node.name = name;
   node.fn = fn;
   node.phase = WAIT;
@@ -1950,6 +2031,10 @@ var tree = function (options) {
       break;
      }
     case CHILDREN:
+     if (node.isBenchmark) {
+      fns = runBenchmark;
+      break;
+     }
      var child = node.children[node.index++];
      if (child) {
       if (child.children) {
@@ -2059,6 +2144,11 @@ var tree = function (options) {
    node.file = root.file;
   }
   return node;
+ };
+ scope.bench = function () {
+  var node = scope.describe.apply(scope, arguments);
+  node.isBenchmark = true;
+  return true;
  };
  scope.it = function (name, fn, only, skip) {
   var node = new Node(name, fn, only, skip);
@@ -2230,6 +2320,101 @@ var tree = function (options) {
  var context = root;
  next();
 };
+;var runBenchmark = function (done) {
+ var node = this;
+ var limit = Date.now() + node.timeLimit * 0.9;
+ var sampleRuns = node.sampleRuns || 10;
+ var runIndex;
+ var minimumPasses = node.minimumPasses || 10;
+ var passCount = 0;
+ var children = Array.prototype.slice.call(node.children);
+ var childIndex;
+ var child;
+ var start;
+ var fn;
+ children.forEach(initStats);
+ nextPass();
+ function initStats(node) {
+  node.speed = 0;
+  node.variance = 0;
+ }
+ function recordSpeed(node, speed) {
+  node.speed += (speed - node.speed) / passCount;
+  node.variance += (Math.pow(speed - node.speed, 2) - node.variance) / passCount;
+ }
+ function nextPass() {
+  passCount++;
+  childIndex = runIndex = 0;
+  nextChild();
+ }
+ function nextChild() {
+  child = children[childIndex++];
+  if (child) {
+   fn = child.fn;
+   var runFn = /^function.*?\([^\s\)]/.test(fn.toString()) ? runAsync : runSync;
+   start = process.hrtime();
+   runFn();
+  }
+  else {
+   calculateStats();
+  }
+ }
+ function runSync() {
+  for (runIndex = 0; runIndex < sampleRuns; runIndex++) {
+   fn.call(child);
+  }
+  finishChild();
+ }
+ function runAsync() {
+  if (runIndex++ < sampleRuns) {
+   fn.call(child, runAsync);
+  }
+  else {
+   finishChild();
+  }
+ }
+ function finishChild() {
+  var end = process.hrtime();
+  var nanos = (end[0] - start[0]) * 1e9 + end[1] - start[1];
+  recordSpeed(child, sampleRuns / nanos * 1e9);
+  nextChild();
+ }
+ function sortBySpeed(array) {
+  array.sort(function (a, b) {
+   return b.speed - a.speed;
+  });
+ }
+ function calculateStats() {
+  sortBySpeed(children);
+  if (passCount >= minimumPasses) {
+   for (var i = children.length - 1; i > 0; i--) {
+    var last = children[i];
+    var next = children[i - 1];
+    var error = Math.sqrt((next.variance + last.variance) / passCount);
+    var z = Math.abs(next.speed - last.speed) / error;
+    if (z > 2.576) {
+     var child = children.pop();
+     child.slower = true;
+    }
+    else {
+     break;
+    }
+   }
+  }
+  if (children.length > 1 && Date.now() < limit) {
+   setImmediate(nextPass);
+  }
+  else {
+   var best = children[0];
+   sortBySpeed(node.children);
+   node.children.forEach(function (child) {
+    child.time = best.speed / child.speed;
+   });
+   done();
+  }
+ }
+}
+;
 var base, red, green, cyan, magenta, yellow, gray, white;
 var dot, ex, arrow, bullets;
 var width = 100;
@@ -2265,7 +2450,7 @@ exam.console = {
  start: function (options) {
   this.init(options);
   if (!options.hideAscii) {
-   var version = '0.2.1';
+   var version = '0.2.2';
    var art = [
     gray + (new Array(width)).join('='),
     yellow + '  ' + gray + '  _',
@@ -2299,9 +2484,10 @@ exam.console = {
   return JSON.colorize(data, 0, '  ', '', width - 9);
  },
  finishTree: function (run, data) {
+  var self = this;
   var options = run.options;
-  this.init(options);
-  this.stream.write('');
+  self.init(options);
+  self.stream.write('');
   var hasOnly = data.hasOnly;
   var dive = function (node, indent) {
    var name = node.name;
@@ -2374,9 +2560,17 @@ exam.console = {
     else {
      data[key]++;
      if (!hide) {
-      data.output += indent + bullets[key] + name;
-      if (key == 'passed' && (time >= options.slow)) {
-       data.output += (time >= options.verySlow ? red : yellow) + ' (' + time + 'ms)';
+      if (node.speed) {
+       var speed = self.whole(node.speed);
+       var deviation = self.whole(Math.sqrt(node.variance) + 1);
+       var bullet = node.slower ? (node.time >= 10 ? '• '.red  : '• '.yellow) : bullets.passed;
+       data.output += indent + bullet + name.base + ': '.gray + speed + ' op/s' + (' ±' + deviation).gray;
+      }
+      else {
+       data.output += indent + bullets[key] + name;
+       if (key == 'passed' && (time >= options.slow)) {
+        data.output += (time >= options.verySlow ? red : yellow) + ' (' + time + 'ms)';
+       }
       }
       if (error && results) {
        results.forEach(function (result) {
@@ -2400,6 +2594,15 @@ exam.console = {
   };
   dive(run);
   return data;
+ },
+ whole: function (number) {
+  return ('' + Math.floor(number))
+   .replace(/(\d\d)\d{9}$/, '$1B')
+   .replace(/(\d)(\d)\d{8}$/, '$1.$2B')
+   .replace(/(\d\d)\d{6}$/, '$1M')
+   .replace(/(\d)(\d)\d{5}$/, '$1.$2M')
+   .replace(/(\d\d)\d{3}$/, '$1K')
+   .replace(/(\d)([1-9])\d{2}$/, '$1.$2K');
  },
  finishExam: function (data) {
   var output = data.outputs.join('');
@@ -2446,7 +2649,7 @@ exam.console = {
   return output;
  }
 };
-exam.counts = {
+;exam.counts = {
  finishTree: function (run, data) {
   var hasOnly = data.hasOnly;
   var dive = function (node) {
@@ -2479,7 +2682,7 @@ exam.counts = {
   this.stream.write(json + '\n');
  }
 };
-exam.tap = {
+;exam.tap = {
  finishTree: function (run, data) {
   data.output = [];
   var dive = function (node) {
@@ -2524,7 +2727,7 @@ exam.tap = {
   stream.write('# fail ' + data.failed + '\n');
  }
 };
-var time;
+;var time;
 var replacements = {
  '"': '&quot;',
  '<': '&lt;',
@@ -2592,3 +2795,4 @@ exam.xunit = {
   stream.write('</testsuite>\n');
  }
 };
+;

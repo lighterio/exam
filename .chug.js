@@ -8,8 +8,9 @@ chug([
   'common/error/snippet-stack.js',
   'common/fs/mkdirp.js',
   'common/fs/shorten-path.js',
-  'common/json/colorize.js',
+  'common/json/stringify.js',
   'common/json/scriptify.js',
+  'common/json/colorize.js',
   'common/json/eval.js',
   'common/json/read-stream.js',
   'common/json/write-stream.js',
@@ -18,6 +19,7 @@ chug([
   'lib/is.js',
   'lib/mock.js',
   'lib/tree.js',
+  'lib/bench.js',
   'lib/reporters/console.js',
   'lib/reporters/counts.js',
   'lib/reporters/tap.js',
@@ -35,10 +37,10 @@ chug([
     asset.replace(/module\.exports = /g, one);
     asset.replace(/delete require\.cache\[runPath\];\s+require\(runPath\)/, 'run');
     asset.replace(/require\('\.[^']*\/(tree)'\)/g, '$1');
-    asset.replace(/require\([^\)]+(colorize|eval|scriptify|read-stream|write-stream)'\);/g, '');
+    asset.replace(/require\([^\)]+(stringify|colorize|eval|scriptify|read-stream|write-stream)'\);/g, '');
     asset.replace(/var ([a-z]+)Reporter/g, 'exam.$1');
     asset.replace(/require\([^\)]+(options\.reporter)\);/g, 'exam[$1];');
-    asset.replace(/var (Type|Emitter|tree|exam|mkdirp|colors|snippetStack|shortenPath|cli) = require[^\n]+/g, '');
+    asset.replace(/var (Type|Emitter|tree|exam|mkdirp|colors|snippetStack|shortenPath|cli|runBenchmark) = require[^\n]+/g, '');
     asset.replace(/scope\.(is|mock) = require\('\.\/\1'\);/g, 'scope.$1 = $1;');
     asset.replace(/require\('[^\)]+\/package\.json'\)\.version/g, "'" + pkg.version + "'");
     asset.replace(/require\('[^\)]+\/options'\)/g, 'exam.options || getOptions');
