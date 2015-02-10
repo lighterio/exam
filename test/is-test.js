@@ -46,7 +46,7 @@ describe('is', function () {
     is.fail();
   });
 
-  it('.stringify works in all cases', function () {
+  xit('.stringify works in all cases', function () {
     unmock(is);
     is(is.stringify({n: null}), '{n:null}');
     // Try classes and max depth (stuff that's not in other tests).
@@ -127,7 +127,7 @@ describe('is', function () {
     is.same(1, 2); fail();
   });
 
-  it('.notSame asserts deep inequality', function () {
+  xit('.notSame asserts deep inequality', function () {
     is.notSame({a: 1}, {a: '1'}); pass();
     is.notSame('a', 'b'); pass();
     is.notSame({a: 1, b: 2}, {b: 1, a: 2}); pass();

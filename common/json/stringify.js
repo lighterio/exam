@@ -1,7 +1,7 @@
 /**
  * Wrap the native JSON.stringify with a circular-safe method.
  *
- * @origin lighter-common/common/json/stringify.js
+ * @origin https://github.com/lighterio/lighter-common/common/json/stringify.js
  * @version 0.0.2
  */
 

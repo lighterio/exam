@@ -333,7 +333,7 @@ if (process.mainModule == module) {
   (options.files ? tree : exam)(options);
  });
 }
-;var Type = function () {};
+var Type = function () {};
 Type.extend = function (properties) {
  var type = properties.init || function () {
   if (this.init) {
@@ -353,7 +353,6 @@ Type.decorate = function (object, properties) {
  }
  return object;
 };
-;
 var Emitter = Type.extend({
  setMaxListeners: function (max) {
   var self = this;
@@ -479,7 +478,6 @@ var Emitter = Type.extend({
  }
 });
 Emitter.defaultMaxListeners = 10;
-;
 var snippetStack = function (stack, options) {
  var arrow = (process.platform == 'win32' ? '\u2192' : '\u279C') + ' ';
  options = options || 0;
@@ -490,12 +488,12 @@ var snippetStack = function (stack, options) {
  var color = options.color || 'red';
  var ignore = options.ignore || 0;
  stack = stack.replace(
-  /\n +at ([^:\n]+ )?(\(|)(\/[^:]+\/)([^\/:]+):(\d+):(\d+)(\)?)/g,
-  function (match, name, start, path, file, line, column, end) {
-   if (ignore && ignore.test(path)) {
+  /\n +at ([^:\n]+ )?(\(|)(\/[^:]+\/|vm-run:)([^\/:]+):(\d+):(\d+)(\)?)/g,
+  function (match, name, start, dir, file, line, column, end) {
+   if (ignore && ignore.test(dir)) {
     return match;
    }
-   var shortPath = shortenPath(path);
+   var shortPath = shortenPath(dir);
    var message = '\n' + indent +
     colors.gray + 'at ' +
     (name ? colors.base + name + colors.gray : '') + '(' +
@@ -507,7 +505,8 @@ var snippetStack = function (stack, options) {
     var lineNumber = line * 1;
     var lines = '';
     try {
-     lines += fs.readFileSync(path + file);
+     var path = dir + file;
+     lines += processCache.get(path) || fs.readFileSync(path);
     }
     catch (e) {
     }
@@ -538,7 +537,7 @@ var snippetStack = function (stack, options) {
  stack = stack.replace(/(\n +at )(\S+ )?/g, '\n' + indent + 'at '.gray + '$2' + colors.gray);
  return colors[color] + stack;
 };
-;var path = require('path');
+var path = require('path');
 var resolve = path.resolve;
 var dirname = path.dirname;
 var mkdirp = function (path, mode, fn) {
@@ -574,7 +573,7 @@ function mk(path, mode, fn, dir) {
 }
 mkdirp.fs = require('fs');
 mkdirp.umask = process.umask();
-;var shortenPath = function (path) {
+var shortenPath = function (path) {
  var dirs = shortenPath.dirs;
  for (var i = 0; i < 2; i++) {
   var dir = dirs[i];
@@ -588,7 +587,7 @@ shortenPath.dirs = [
  [process.cwd() + '/', './'],
  [process.env.HOME + '/', '~/']
 ];
-;if (!JSON.nativeStringify) {
+if (!JSON.nativeStringify) {
  var nativeStringify = JSON.nativeStringify = JSON.stringify;
  var stringify = function (value, stack, space) {
   var string;
@@ -645,7 +644,7 @@ shortenPath.dirs = [
  };
 }
 JSON.stringify;
-;var scriptify = JSON.scriptify = function (value, stack) {
+var scriptify = JSON.scriptify = function (value, stack) {
  var type = typeof value;
  if (type == 'function') {
   return value.toString();
@@ -688,7 +687,7 @@ JSON.stringify;
    return string + ']';
   }
   else {
-   var i = 0;
+   i = 0;
    string = '{';
    for (var key in value) {
     string += (i ? ',' : '') +
@@ -702,7 +701,6 @@ JSON.stringify;
  }
  return '' + value;
 };
-;
 JSON.colorize = function (data, stack, space, indent, maxWidth, maxDepth) {
  maxWidth = maxWidth || 80;
  maxDepth = maxDepth || 5;
@@ -827,19 +825,19 @@ JSON.colorize = function (data, stack, space, indent, maxWidth, maxDepth) {
  data = '' + data;
  return color ? data[color] : data;
 };
-;JSON.eval = function (js, fallback) {
- delete JSON.eval.error;
+var evaluate = JSON.evaluate = function (js, fallback) {
+ delete evaluate.error;
  try {
-  eval('JSON.eval.value=' + js);
-  return JSON.eval.value;
+  eval('JSON.evaluate.value=' + js);
+  return evaluate.value;
  }
  catch (error) {
   error.message += '\nJS: ' + js;
-  JSON.eval.error = error;
+  evaluate.error = error;
   return fallback;
  }
 };
-;
+var evaluate =
 JSON.readStream = function (stream, event) {
  var data = '';
  stream.on('data', function (chunk) {
@@ -848,8 +846,8 @@ JSON.readStream = function (stream, event) {
   while (end > 0) {
    var line = data.substr(0, end);
    data = data.substr(end + 1);
-   var object = JSON.eval(line);
-   var error = JSON.eval.error;
+   var object = evaluate(line);
+   var error = evaluate.error;
    if (error) {
     stream.emit('error', error);
    }
@@ -861,11 +859,11 @@ JSON.readStream = function (stream, event) {
  });
  return stream;
 };
-;
+var scriptify =
 JSON.writeStream = function (stream) {
  var write = stream.write;
  stream.write = function (object) {
-  var js = JSON.scriptify(object);
+  var js = scriptify(object);
   if (stream.writable) {
    write.call(stream, js + '\n');
   }
@@ -877,7 +875,6 @@ JSON.writeStream = function (stream) {
  };
  return stream;
 };
-;
 var argv = process.argv.slice(2);
 var cli = function cli(config) {
  config = config || {};
@@ -1085,7 +1082,7 @@ cli.options = function (config) {
  }
  return args;
 };
-;var colors = {
+var colors = {
  reset: '\u001b[0m',
  base: '\u001b[39m',
  bgBase: '\u001b[49m',
@@ -1170,7 +1167,6 @@ define('bgBlue', function () { return enableColors ? '\u001b[44m' + this + '\u00
 define('bgMagenta', function () { return enableColors ? '\u001b[45m' + this + '\u001b[49m' : this; });
 define('bgCyan', function () { return enableColors ? '\u001b[46m' + this + '\u001b[49m' : this; });
 define('bgWhite', function () { return enableColors ? '\u001b[47m' + this + '\u001b[49m' : this; });
-;// Throw assertion errors, like any well-behaving assertion library.
 var AssertionError = require('assert').AssertionError;
 function is(actual, expected) {
  var fn = (actual === expected) ? is.pass : is.fail;
@@ -1487,7 +1483,7 @@ is.notArrayOf = function (array, expected) {
  var op = 'is not an array of ' + ex + 's';
  return fn([js(array), op, js(name)], is.notArrayOf, array, expected);
 };
-;var mockedObjects = [];
+var mockedObjects = [];
 var mockFs;
 var mock = function mock(object, mockObject) {
  var mocked = object._EXAM_MOCKED_ORIGINALS;
@@ -1796,7 +1792,6 @@ unmock.time = function () {
   return mockFs[method].apply(mockFs, arguments);
  };
 });
-;
 var tree = function (options) {
  options = options || exam.options || getOptions();
  var grep = options.grep;
@@ -2194,17 +2189,17 @@ var tree = function (options) {
  scope.xit = scope.it.skip;
  scope.ddescribe = scope.describe.only;
  scope.xdescribe = scope.describe.skip;
- scope.before = scope.setup = function (fn) {
-  addSuiteFunction(suite, 'before', fn);
+ scope.before = scope.setup = function (name, fn) {
+  addSuiteFunction(suite, 'before', name, fn);
  };
- scope.after = scope.teardown = function (fn) {
-  addSuiteFunction(suite, 'after', fn);
+ scope.after = scope.teardown = function (name, fn) {
+  addSuiteFunction(suite, 'after', name, fn);
  };
- scope.beforeEach = function (fn) {
-  addSuiteFunction(suite, 'beforeEach', fn);
+ scope.beforeEach = function (name, fn) {
+  addSuiteFunction(suite, 'beforeEach', name, fn);
  };
- scope.afterEach = function (fn) {
-  addSuiteFunction(suite, 'afterEach', fn);
+ scope.afterEach = function (name, fn) {
+  addSuiteFunction(suite, 'afterEach', name, fn);
  };
  ['alert', 'debug', 'trace'].forEach(function (type) {
   scope[type] = function () {
@@ -2233,8 +2228,11 @@ var tree = function (options) {
   };
  });
  scope.trace.lead = 5;
- function addSuiteFunction(suite, key, fn) {
-  process.assert(typeof fn == 'function', 'Exam `' + key + '` accepts a function as its only argument.');
+ function addSuiteFunction(suite, key, name, fn) {
+  if (typeof name == 'function') {
+   fn = name;
+   name = key;
+  }
   var fns = suite[key];
   if (!fns) {
    suite[key] = fn;
@@ -2320,7 +2318,7 @@ var tree = function (options) {
  var context = root;
  next();
 };
-;var runBenchmark = function (done) {
+var runBenchmark = function (done) {
  var node = this;
  var limit = Date.now() + node.timeLimit * 0.9;
  var sampleRuns = node.sampleRuns || 10;
@@ -2335,10 +2333,12 @@ var tree = function (options) {
  children.forEach(initStats);
  nextPass();
  function initStats(node) {
+  node.passes = 0;
   node.speed = 0;
   node.variance = 0;
  }
  function recordSpeed(node, speed) {
+  node.passes++;
   node.speed += (speed - node.speed) / passCount;
   node.variance += (Math.pow(speed - node.speed, 2) - node.variance) / passCount;
  }
@@ -2373,6 +2373,7 @@ var tree = function (options) {
    finishChild();
   }
  }
+ //
  function finishChild() {
   var end = process.hrtime();
   var nanos = (end[0] - start[0]) * 1e9 + end[1] - start[1];
@@ -2414,7 +2415,6 @@ var tree = function (options) {
   }
  }
 }
-;
 var base, red, green, cyan, magenta, yellow, gray, white;
 var dot, ex, arrow, bullets;
 var width = 100;
@@ -2497,7 +2497,6 @@ exam.console = {
    var hide = hasOnly && skip;
    var error = (stub || skip) ? '' : node.error;
    var children = node.children;
-   var color = error ? red : stub ? cyan : skip ? yellow : children ? base : gray;
    var key = error ? 'failed' : skip ? 'skipped' : stub ? 'stubbed' : 'passed';
    var results = node.results;
    var logs = node.logs;
@@ -2510,6 +2509,7 @@ exam.console = {
     }
     title = title.replace(/([^\.])$/, '$1' + gray);
     if (error) {
+     error.stack = (error.stack || (error || '')).replace(/(\/exam\/exam\.js:\d+:\d+\))[\s\S]*$/, '$1');
      (data.errors = data.errors || []).push(title + '\n    ' + snippetStack(error, {
       indent: '      ',
       lead: 5,
@@ -2564,7 +2564,7 @@ exam.console = {
        var speed = self.whole(node.speed);
        var deviation = self.whole(Math.sqrt(node.variance) + 1);
        var bullet = node.slower ? (node.time >= 10 ? '• '.red  : '• '.yellow) : bullets.passed;
-       data.output += indent + bullet + name.base + ': '.gray + speed + ' op/s' + (' ±' + deviation).gray;
+       data.output += indent + bullet + name.base + ': '.gray + speed + ' op/s' + (' ±' + deviation).gray + ' over ' + node.passes + ' passes';
       }
       else {
        data.output += indent + bullets[key] + name;
@@ -2602,7 +2602,7 @@ exam.console = {
    .replace(/(\d\d)\d{6}$/, '$1M')
    .replace(/(\d)(\d)\d{5}$/, '$1.$2M')
    .replace(/(\d\d)\d{3}$/, '$1K')
-   .replace(/(\d)([1-9])\d{2}$/, '$1.$2K');
+   .replace(/(\d)(\d)\d{2}$/, '$1.$2K');
  },
  finishExam: function (data) {
   var output = data.outputs.join('');
@@ -2649,7 +2649,7 @@ exam.console = {
   return output;
  }
 };
-;exam.counts = {
+exam.counts = {
  finishTree: function (run, data) {
   var hasOnly = data.hasOnly;
   var dive = function (node) {
@@ -2682,7 +2682,7 @@ exam.console = {
   this.stream.write(json + '\n');
  }
 };
-;exam.tap = {
+exam.tap = {
  finishTree: function (run, data) {
   data.output = [];
   var dive = function (node) {
@@ -2727,7 +2727,7 @@ exam.console = {
   stream.write('# fail ' + data.failed + '\n');
  }
 };
-;var time;
+var time;
 var replacements = {
  '"': '&quot;',
  '<': '&lt;',
@@ -2795,4 +2795,3 @@ exam.xunit = {
   stream.write('</testsuite>\n');
  }
 };
-;
