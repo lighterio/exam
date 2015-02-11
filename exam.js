@@ -5,7 +5,7 @@ var spawn = require('child_process').spawn;
 var tree = tree;
 var deepWatch = require('./common/fs/deep-watch');
 var exam = module.exports = function (options) {
- var waits, testFiles, assignments, data, isRunning;
+ var waits, testFiles, data, isRunning, finished;
  var cwd = process.cwd();
  var manifest = {};
  var cacheDir = cwd + '/.cache/exam';
@@ -171,7 +171,7 @@ var exam = module.exports = function (options) {
     args.unshift('--debug');
    }
    args.push('--files');
-   assignments.forEach(function (testFiles, index) {
+   assignments.forEach(function (testFiles) {
     args.push(testFiles.join(','));
     var child = spawn(execPath, args);
     var input = JSON.readStream(child.stdout);
@@ -293,7 +293,7 @@ var exam = module.exports = function (options) {
   }
  }
 };
-exam.version = '0.2.2';
+exam.version = '0.2.4';
 if (process.mainModule == module) {
  process.nextTick(function () {
   var options = cli({
@@ -837,7 +837,6 @@ var evaluate = JSON.evaluate = function (js, fallback) {
   return fallback;
  }
 };
-var evaluate =
 JSON.readStream = function (stream, event) {
  var data = '';
  stream.on('data', function (chunk) {
@@ -859,7 +858,6 @@ JSON.readStream = function (stream, event) {
  });
  return stream;
 };
-var scriptify =
 JSON.writeStream = function (stream) {
  var write = stream.write;
  stream.write = function (object) {
@@ -1519,7 +1517,7 @@ var unmock = mock.unmock = function unmock(object, keys) {
  }
  var mocked = object._EXAM_MOCKED_ORIGINALS;
  if (mocked) {
-  for (index = 0; index < 2; index++) {
+  for (var index = 0; index < 2; index++) {
    var originals = keys || mocked[index];
    for (var key in originals) {
     if (index) {
@@ -1536,7 +1534,7 @@ var unmock = mock.unmock = function unmock(object, keys) {
  }
  return object;
 };
-function decorateFn(fn, args) {
+function decorateFn(fn) {
  fn.returns = function (value) {
   fn._returns = value;
   return fn;
@@ -1553,7 +1551,7 @@ mock.fn = mock.ignore = function () {
  return decorateFn(fn);
 };
 mock.count = function () {
- function fn(data) {
+ function fn() {
   fn.value++;
   return finishFn(fn);
  }
@@ -1561,7 +1559,7 @@ mock.count = function () {
  return decorateFn(fn);
 };
 mock.set = function (index) {
- function fn(data) {
+ function fn() {
   fn.value = isNaN(index) ? arguments : arguments[index];
   return finishFn(fn);
  }
@@ -1569,7 +1567,7 @@ mock.set = function (index) {
  return decorateFn(fn);
 };
 mock.args = function (index) {
- function fn(data) {
+ function fn() {
   fn.value.push(isNaN(index) ? arguments : arguments[index]);
   return finishFn(fn);
  }
@@ -1709,7 +1707,7 @@ mock.time.add = function (time) {
  });
  runSchedules();
 };
-mock.time.speed = function (speed, interval) {
+mock.time.speed = function (speed) {
  mock.time._SPEED = speed || 1e3;
  moveTime();
 };
@@ -1824,13 +1822,11 @@ var tree = function (options) {
  var CHILDREN = 3;
  var AFTER = 4;
  var END = 5;
- var phases = ['WAIT', 'BEFORE', 'RUN', 'CHILDREN', 'AFTER', 'END'];
  var prepKeys = ['beforeEach', 'afterEach'];
  var prep = [null, null];
- var BEFORE_EACH = 0;
- var AFTER_EACH = 1;
  var asyncPattern = /^function.*?\([^\s\)]/;
- if (options.parser && !process.env.running_under_istanbul) {
+ var isInstrumented = process.env.running_under_istanbul;
+ if (options.parser && !isInstrumented) {
   var parser = require(options.parser);
   var parserExp = /(^[\s|\S]+?[\/\\](esprima|acorn)\.js:\d+:\d+\))[\s\S]*$/;
   var Module = require('module');
@@ -1845,7 +1841,6 @@ var tree = function (options) {
   };
   Module.wrap = function (script) {
    if (parsingPath) {
-    var error;
     var wrapped = 'var f=function(){' + script + '}';
     try {
      eval(wrapped);
@@ -1883,11 +1878,6 @@ var tree = function (options) {
    }
    (context.results = context.results || []).push(result);
   });
- }
- function stub() {
-  if (showProgress) {
-   reporter.stub();
-  }
  }
  function bubble(parent, key, value) {
   while (parent) {
@@ -1968,14 +1958,12 @@ var tree = function (options) {
   }
  };
  function next() {
-  var i, j, l, fns, fn, key, prepStack, n = 0;
+  var i, j, l, fns, fn, key, prepStack;
   while (true) {
    if (!node) {
     root.timeout(0);
     return finishTree();
    }
-   var name = node.name;
-   var phase = node.phase;
    var isSuite = node.children ? true : false;
    if (isSuite) {
     suite = node;
@@ -1994,7 +1982,9 @@ var tree = function (options) {
      }
     case BEFORE:
      fns = (isSuite ? node.before : prep[0]);
-     if (fns) break;
+     if (fns) {
+      break;
+     }
     case RUN:
      context = node;
      node.index = 0;
@@ -2063,7 +2053,9 @@ var tree = function (options) {
      else {
       fns = prep[1];
      }
-     if (fns) break;
+     if (fns) {
+      break;
+     }
      node.phase = END;
     case END:
      var now = Date.now();
@@ -2414,7 +2406,7 @@ var runBenchmark = function (done) {
    done();
   }
  }
-}
+};
 var base, red, green, cyan, magenta, yellow, gray, white;
 var dot, ex, arrow, bullets;
 var width = 100;
@@ -2450,7 +2442,7 @@ exam.console = {
  start: function (options) {
   this.init(options);
   if (!options.hideAscii) {
-   var version = '0.2.2';
+   var version = '0.2.4';
    var art = [
     gray + (new Array(width)).join('='),
     yellow + '  ' + gray + '  _',

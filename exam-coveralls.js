@@ -2,12 +2,12 @@
 
 var fs = require('fs');
 var spawn = require('child_process').spawn;
-var istanbul = './node_modules/exam/node_modules/istanbul/lib/cli.js';
-var coveralls = './node_modules/exam/node_modules/coveralls/bin/coveralls.js';
+var istanbul = __dirname + '/node_modules/istanbul/lib/cli.js';
+var coveralls = __dirname + '/node_modules/coveralls/bin/coveralls.js';
 
 var cover = spawn(istanbul, [
   'cover',
-  './node_modules/exam/exam.js',
+  __dirname + '/exam.js',
   '--report', 'lcovonly',
   '-x', '**/common/**',
   '-x', '**/node_modules/**',

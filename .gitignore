@@ -16,3 +16,5 @@ results
 coverage
 node_modules
 build
+exam.js
+exam-iojs.js

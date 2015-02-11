@@ -1,4 +1,3 @@
-
 *.seed
 *.log
 *.csv
@@ -20,3 +19,5 @@ test
 benchmarks
 .travis.yml
 .npmignore
+.editorconfig
+.jshintrc

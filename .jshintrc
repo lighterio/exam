@@ -5,6 +5,24 @@
   "browser": true,
   "node": true,
   "quotmark": false,
-  "loopfunc": true
+  "loopfunc": true,
+  "globals": {
+    "describe": false,
+    "ddescribe": false,
+    "it": false,
+    "iit": false,
+    "before": false,
+    "beforeEach": false,
+    "after": false,
+    "afterEach": false,
+    "is": false,
+    "mock": false,
+    "unmock": false,
+    "bench": false,
+    "exam": false,
+    "alert": false,
+    "debug": false,
+    "trace": false
+  }
 }
 

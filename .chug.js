@@ -41,6 +41,7 @@ chug([
     asset.replace(/var ([a-z]+)Reporter/g, 'exam.$1');
     asset.replace(/require\([^\)]+(options\.reporter)\);/g, 'exam[$1];');
     asset.replace(/var (Type|Emitter|tree|exam|mkdirp|colors|snippetStack|shortenPath|cli|runBenchmark|processCache) = require[^\n]+/g, '');
+    asset.replace(/var ([a-zA-Z]+) = \n/g, '');
     asset.replace(/scope\.(is|mock) = require\('\.\/\1'\);/g, 'scope.$1 = $1;');
     asset.replace(/require\('[^\)]+\/package\.json'\)\.version/g, "'" + pkg.version + "'");
     asset.replace(/require\('[^\)]+\/options'\)/g, 'exam.options || getOptions');
