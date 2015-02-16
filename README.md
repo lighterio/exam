@@ -83,6 +83,9 @@ Runs `fn` after each test in a suite.
 #### setup/teardown
 Aliases for before/after.
 
+#### bench(name, fn)
+Runs `fn` as a benchmark.
+
 ### Assertions and Mocks
 
 #### is(actual, expected)
@@ -639,8 +642,17 @@ Restores the properties which belonged to the object prior to being mocked.
 ### bench(name, fn)
 
 The bench function is similar to `describe`. It sets up a suite that can
-contain multiple tests to be run against each other. The individual tests
-are
+contain multiple `it` calls, declaring implementations to run against each
+other. The individual tests are run until Exam is 99% certain that it has
+determined which implementation is fastest, or until a timeout is reached -
+whichever comes first.
+
+The `bench` function's `this` context has properties which can be modified:
+* **sampleSize** - `number` The number of times to run each `it` function
+  inside the suite before taking a timing sample.
+* **minimumSamples** - `number` The number of timing samples to take before
+  the first statistical significance calculation for determining which is
+  fastest.
 
 ## Running exam
 
