@@ -1,14 +1,16 @@
 /**
  * Return a colorized stack trace with code snippets.
  *
- * @origin lighter-common/common/error/snippet-stack.js
+ * @origin https://github.com/lighterio/lighter-common/common/error/snippet-stack.js
  * @version 0.0.1
  * @import string/colors
  * @import fs/shorten-path
+ * @import process/cache
  */
 var fs = require('fs');
-var colors = require('../string/colors');
-var shortenPath = require('../fs/shorten-path');
+var colors = require('../../common/string/colors');
+var shortenPath = require('../../common/fs/shorten-path');
+var processCache = require('../../common/process/cache');
 
 var snippetStack = module.exports = function (stack, options) {
   var arrow = (process.platform == 'win32' ? '\u2192' : '\u279C') + ' ';
@@ -20,12 +22,12 @@ var snippetStack = module.exports = function (stack, options) {
   var color = options.color || 'red';
   var ignore = options.ignore || 0;
   stack = stack.replace(
-    /\n +at ([^:\n]+ )?(\(|)(\/[^:]+\/)([^\/:]+):(\d+):(\d+)(\)?)/g,
-    function (match, name, start, path, file, line, column, end) {
-      if (ignore && ignore.test(path)) {
+    /\n +at ([^:\n]+ )?(\(|)(\/[^:]+\/|vm-run:)([^\/:]+):(\d+):(\d+)(\)?)/g,
+    function (match, name, start, dir, file, line, column, end) {
+      if (ignore && ignore.test(dir)) {
         return match;
       }
-      var shortPath = shortenPath(path);
+      var shortPath = shortenPath(dir);
       var message = '\n' + indent +
         colors.gray + 'at ' +
         (name ? colors.base + name + colors.gray : '') + '(' +
@@ -37,7 +39,8 @@ var snippetStack = module.exports = function (stack, options) {
         var lineNumber = line * 1; // 1-indexed.
         var lines = '';
         try {
-          lines += fs.readFileSync(path + file);
+          var path = dir + file;
+          lines += processCache.get(path) || fs.readFileSync(path);
         }
         catch (e) {
           // If we can't find a file, we show a line without a snippet.

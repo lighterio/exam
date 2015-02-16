@@ -5,7 +5,7 @@ var spawn = require('child_process').spawn;
 var tree = tree;
 var deepWatch = require('./common/fs/deep-watch');
 var exam = module.exports = function (options) {
- var waits, testFiles, assignments, data, isRunning;
+ var waits, testFiles, data, isRunning, finished;
  var cwd = process.cwd();
  var manifest = {};
  var cacheDir = cwd + '/.cache/exam';
@@ -171,7 +171,7 @@ var exam = module.exports = function (options) {
     args.unshift('--debug');
    }
    args.push('--files');
-   assignments.forEach(function (testFiles, index) {
+   assignments.forEach(function (testFiles) {
     args.push(testFiles.join(','));
     var child = spawn(execPath, args);
     var input = JSON.readStream(child.stdout);
@@ -293,7 +293,7 @@ var exam = module.exports = function (options) {
   }
  }
 };
-exam.version = '0.2.1';
+exam.version = '0.2.4';
 if (process.mainModule == module) {
  process.nextTick(function () {
   var options = cli({
@@ -469,6 +469,12 @@ var Emitter = Type.extend({
    }
   }
   return self;
+ },
+ one: function (type, fn) {
+  var self = this;
+  var events = self._events = self._events || {};
+  events[type] = fn;
+  return self;
  }
 });
 Emitter.defaultMaxListeners = 10;
@@ -482,12 +488,12 @@ var snippetStack = function (stack, options) {
  var color = options.color || 'red';
  var ignore = options.ignore || 0;
  stack = stack.replace(
-  /\n +at ([^:\n]+ )?(\(|)(\/[^:]+\/)([^\/:]+):(\d+):(\d+)(\)?)/g,
-  function (match, name, start, path, file, line, column, end) {
-   if (ignore && ignore.test(path)) {
+  /\n +at ([^:\n]+ )?(\(|)(\/[^:]+\/|vm-run:)([^\/:]+):(\d+):(\d+)(\)?)/g,
+  function (match, name, start, dir, file, line, column, end) {
+   if (ignore && ignore.test(dir)) {
     return match;
    }
-   var shortPath = shortenPath(path);
+   var shortPath = shortenPath(dir);
    var message = '\n' + indent +
     colors.gray + 'at ' +
     (name ? colors.base + name + colors.gray : '') + '(' +
@@ -499,7 +505,8 @@ var snippetStack = function (stack, options) {
     var lineNumber = line * 1;
     var lines = '';
     try {
-     lines += fs.readFileSync(path + file);
+     var path = dir + file;
+     lines += processCache.get(path) || fs.readFileSync(path);
     }
     catch (e) {
     }
@@ -580,6 +587,120 @@ shortenPath.dirs = [
  [process.cwd() + '/', './'],
  [process.env.HOME + '/', '~/']
 ];
+if (!JSON.nativeStringify) {
+ var nativeStringify = JSON.nativeStringify = JSON.stringify;
+ var stringify = function (value, stack, space) {
+  var string;
+  if (value === null) {
+   return 'null';
+  }
+  if (typeof value != 'object') {
+   return nativeStringify(value);
+  }
+  var length = stack.length;
+  for (var i = 0; i < length; i++) {
+   if (stack[i] == value) {
+    return '"[Circular ' + (length - i) + ']"';
+   }
+  }
+  stack.push(value);
+  var isArray = (value instanceof Array);
+  var list = [];
+  var json;
+  if (isArray) {
+   length = value.length;
+   for (i = 0; i < length; i++) {
+    json = stringify(value[i], stack, space);
+    if (json != undefined) {
+     list.push(json);
+    }
+   }
+  }
+  else {
+   for (var key in value) {
+    json = stringify(value[key], stack, space);
+    if (json != undefined) {
+     key = nativeStringify(key) + ':' + (space ? ' ' : '');
+     list.push(key + json);
+    }
+   }
+  }
+  if (space && list.length) {
+   var indent = '\n' + (new Array(stack.length)).join(space);
+   var indentSpace = indent + space;
+   list = indentSpace + list.join(',' + indentSpace) + indent;
+  }
+  else {
+   list = list.join(',');
+  }
+  value = isArray ? '[' + list + ']' : '{' + list + '}';
+  stack.pop();
+  return value;
+ };
+ JSON.stringify = function (value, replacer, space) {
+  return replacer ?
+   nativeStringify(value, replacer, space) :
+   stringify(value, [], space);
+ };
+}
+JSON.stringify;
+var scriptify = JSON.scriptify = function (value, stack) {
+ var type = typeof value;
+ if (type == 'function') {
+  return value.toString();
+ }
+ if (type == 'string') {
+  return JSON.stringify(value);
+ }
+ if (type == 'object' && value) {
+  if (value instanceof Date) {
+   return 'new Date(' + value.getTime() + ')';
+  }
+  if (value instanceof Error) {
+   return '(function(){var e=new Error(' + scriptify(value.message) + ');' +
+    'e.stack=' + scriptify(value.stack) + ';return e})()';
+  }
+  if (value instanceof RegExp) {
+   return '/' + value.source + '/' +
+    (value.global ? 'g' : '') +
+    (value.ignoreCase ? 'i' : '') +
+    (value.multiline ? 'm' : '');
+  }
+  var i, length;
+  if (stack) {
+   length = stack.length;
+   for (i = 0; i < length; i++) {
+    if (stack[i] == value) {
+     return '{"^":' + (length - i) + '}';
+    }
+   }
+  }
+  (stack = stack || []).push(value);
+  var string;
+  if (value instanceof Array) {
+   string = '[';
+   length = value.length;
+   for (i = 0; i < length; i++) {
+    string += (i ? ',' : '') + scriptify(value[i], stack);
+   }
+   stack.pop();
+   return string + ']';
+  }
+  else {
+   i = 0;
+   string = '{';
+   for (var key in value) {
+    string += (i ? ',' : '') +
+     (/^[$_a-z][\w$]*$/i.test(key) ? key : '"' + key + '"') +
+     ':' + scriptify(value[key], stack);
+    i++;
+   }
+   stack.pop();
+   return string + '}';
+  }
+ }
+ return '' + value;
+};
 JSON.colorize = function (data, stack, space, indent, maxWidth, maxDepth) {
  maxWidth = maxWidth || 80;
  maxDepth = maxDepth || 5;
@@ -662,7 +783,6 @@ JSON.colorize = function (data, stack, space, indent, maxWidth, maxDepth) {
       }
      }
     }
-    stack.pop();
     if (space) {
      if (parts.length) {
       length += (parts.length - 1) * 2;
@@ -684,6 +804,7 @@ JSON.colorize = function (data, stack, space, indent, maxWidth, maxDepth) {
      data = '{'.gray + data + '}'.gray;
     }
    }
+   stack.pop();
   }
  }
  else if (stack && !color) {
@@ -704,72 +825,15 @@ JSON.colorize = function (data, stack, space, indent, maxWidth, maxDepth) {
  data = '' + data;
  return color ? data[color] : data;
 };
-var scriptify = JSON.scriptify = function (value, stack) {
- var type = typeof value;
- if (type == 'function') {
-  return value.toString();
- }
- if (type == 'string') {
-  return JSON.stringify(value);
- }
- if (type == 'object' && value) {
-  if (value instanceof Date) {
-   return 'new Date(' + value.getTime() + ')';
-  }
-  if (value instanceof Error) {
-   return '(function(){var e=new Error(' + scriptify(value.message) + ');' +
-    'e.stack=' + scriptify(value.stack) + ';return e})()';
-  }
-  if (value instanceof RegExp) {
-   return '/' + value.source + '/' +
-    (value.global ? 'g' : '') +
-    (value.ignoreCase ? 'i' : '') +
-    (value.multiline ? 'm' : '');
-  }
-  var i, length;
-  if (stack) {
-   length = stack.length;
-   for (i = 0; i < length; i++) {
-    if (stack[i] == value) {
-     return '{"^":' + (length - i) + '}';
-    }
-   }
-  }
-  (stack = stack || []).push(value);
-  var string;
-  if (value instanceof Array) {
-   string = '[';
-   length = value.length;
-   for (i = 0; i < length; i++) {
-    string += (i ? ',' : '') + scriptify(value[i], stack);
-   }
-   stack.pop();
-   return string + ']';
-  }
-  else {
-   var i = 0;
-   string = '{';
-   for (var key in value) {
-    string += (i ? ',' : '') +
-     (/^[$_a-z][\w$]*$/i.test(key) ? key : '"' + key + '"') +
-     ':' + scriptify(value[key], stack);
-    i++;
-   }
-   stack.pop();
-   return string + '}';
-  }
- }
- return '' + value;
-};
-JSON.eval = function (js, fallback) {
- delete JSON.eval.error;
+var evaluate = JSON.evaluate = function (js, fallback) {
+ delete evaluate.error;
  try {
-  eval('JSON.eval.value=' + js);
-  return JSON.eval.value;
+  eval('JSON.evaluate.value=' + js);
+  return evaluate.value;
  }
  catch (error) {
   error.message += '\nJS: ' + js;
-  JSON.eval.error = error;
+  evaluate.error = error;
   return fallback;
  }
 };
@@ -781,8 +845,8 @@ JSON.readStream = function (stream, event) {
   while (end > 0) {
    var line = data.substr(0, end);
    data = data.substr(end + 1);
-   var object = JSON.eval(line);
-   var error = JSON.eval.error;
+   var object = evaluate(line);
+   var error = evaluate.error;
    if (error) {
     stream.emit('error', error);
    }
@@ -797,8 +861,15 @@ JSON.readStream = function (stream, event) {
 JSON.writeStream = function (stream) {
  var write = stream.write;
  stream.write = function (object) {
-  var js = JSON.scriptify(object);
-  write.call(stream, js + '\n');
+  var js = scriptify(object);
+  if (stream.writable) {
+   write.call(stream, js + '\n');
+  }
+  else {
+   stream.once('drain', function () {
+    write.call(stream, js + '\n');
+   });
+  }
  };
  return stream;
 };
@@ -1446,7 +1517,7 @@ var unmock = mock.unmock = function unmock(object, keys) {
  }
  var mocked = object._EXAM_MOCKED_ORIGINALS;
  if (mocked) {
-  for (index = 0; index < 2; index++) {
+  for (var index = 0; index < 2; index++) {
    var originals = keys || mocked[index];
    for (var key in originals) {
     if (index) {
@@ -1463,7 +1534,7 @@ var unmock = mock.unmock = function unmock(object, keys) {
  }
  return object;
 };
-function decorateFn(fn, args) {
+function decorateFn(fn) {
  fn.returns = function (value) {
   fn._returns = value;
   return fn;
@@ -1480,7 +1551,7 @@ mock.fn = mock.ignore = function () {
  return decorateFn(fn);
 };
 mock.count = function () {
- function fn(data) {
+ function fn() {
   fn.value++;
   return finishFn(fn);
  }
@@ -1488,7 +1559,7 @@ mock.count = function () {
  return decorateFn(fn);
 };
 mock.set = function (index) {
- function fn(data) {
+ function fn() {
   fn.value = isNaN(index) ? arguments : arguments[index];
   return finishFn(fn);
  }
@@ -1496,7 +1567,7 @@ mock.set = function (index) {
  return decorateFn(fn);
 };
 mock.args = function (index) {
- function fn(data) {
+ function fn() {
   fn.value.push(isNaN(index) ? arguments : arguments[index]);
   return finishFn(fn);
  }
@@ -1636,7 +1707,7 @@ mock.time.add = function (time) {
  });
  runSchedules();
 };
-mock.time.speed = function (speed, interval) {
+mock.time.speed = function (speed) {
  mock.time._SPEED = speed || 1e3;
  moveTime();
 };
@@ -1751,13 +1822,11 @@ var tree = function (options) {
  var CHILDREN = 3;
  var AFTER = 4;
  var END = 5;
- var phases = ['WAIT', 'BEFORE', 'RUN', 'CHILDREN', 'AFTER', 'END'];
  var prepKeys = ['beforeEach', 'afterEach'];
  var prep = [null, null];
- var BEFORE_EACH = 0;
- var AFTER_EACH = 1;
  var asyncPattern = /^function.*?\([^\s\)]/;
- if (options.parser && !process.env.running_under_istanbul) {
+ var isInstrumented = process.env.running_under_istanbul;
+ if (options.parser && !isInstrumented) {
   var parser = require(options.parser);
   var parserExp = /(^[\s|\S]+?[\/\\](esprima|acorn)\.js:\d+:\d+\))[\s\S]*$/;
   var Module = require('module');
@@ -1772,7 +1841,6 @@ var tree = function (options) {
   };
   Module.wrap = function (script) {
    if (parsingPath) {
-    var error;
     var wrapped = 'var f=function(){' + script + '}';
     try {
      eval(wrapped);
@@ -1810,11 +1878,6 @@ var tree = function (options) {
    }
    (context.results = context.results || []).push(result);
   });
- }
- function stub() {
-  if (showProgress) {
-   reporter.stub();
-  }
  }
  function bubble(parent, key, value) {
   while (parent) {
@@ -1859,7 +1922,10 @@ var tree = function (options) {
  }
  function Node(name, fn, only, skip) {
   var node = this;
-  node.parent = suite;
+  Object.defineProperty(node, 'parent', {
+   enumerable: false,
+   value: suite
+  });
   node.name = name;
   node.fn = fn;
   node.phase = WAIT;
@@ -1892,14 +1958,12 @@ var tree = function (options) {
   }
  };
  function next() {
-  var i, j, l, fns, fn, key, prepStack, n = 0;
+  var i, j, l, fns, fn, key, prepStack;
   while (true) {
    if (!node) {
     root.timeout(0);
     return finishTree();
    }
-   var name = node.name;
-   var phase = node.phase;
    var isSuite = node.children ? true : false;
    if (isSuite) {
     suite = node;
@@ -1918,7 +1982,9 @@ var tree = function (options) {
      }
     case BEFORE:
      fns = (isSuite ? node.before : prep[0]);
-     if (fns) break;
+     if (fns) {
+      break;
+     }
     case RUN:
      context = node;
      node.index = 0;
@@ -1950,6 +2016,10 @@ var tree = function (options) {
       break;
      }
     case CHILDREN:
+     if (node.isBenchmark) {
+      fns = runBenchmark;
+      break;
+     }
      var child = node.children[node.index++];
      if (child) {
       if (child.children) {
@@ -1983,7 +2053,9 @@ var tree = function (options) {
      else {
       fns = prep[1];
      }
-     if (fns) break;
+     if (fns) {
+      break;
+     }
      node.phase = END;
     case END:
      var now = Date.now();
@@ -2060,6 +2132,11 @@ var tree = function (options) {
   }
   return node;
  };
+ scope.bench = function () {
+  var node = scope.describe.apply(scope, arguments);
+  node.isBenchmark = true;
+  return true;
+ };
  scope.it = function (name, fn, only, skip) {
   var node = new Node(name, fn, only, skip);
   return node;
@@ -2104,17 +2181,17 @@ var tree = function (options) {
  scope.xit = scope.it.skip;
  scope.ddescribe = scope.describe.only;
  scope.xdescribe = scope.describe.skip;
- scope.before = scope.setup = function (fn) {
-  addSuiteFunction(suite, 'before', fn);
+ scope.before = scope.setup = function (name, fn) {
+  addSuiteFunction(suite, 'before', name, fn);
  };
- scope.after = scope.teardown = function (fn) {
-  addSuiteFunction(suite, 'after', fn);
+ scope.after = scope.teardown = function (name, fn) {
+  addSuiteFunction(suite, 'after', name, fn);
  };
- scope.beforeEach = function (fn) {
-  addSuiteFunction(suite, 'beforeEach', fn);
+ scope.beforeEach = function (name, fn) {
+  addSuiteFunction(suite, 'beforeEach', name, fn);
  };
- scope.afterEach = function (fn) {
-  addSuiteFunction(suite, 'afterEach', fn);
+ scope.afterEach = function (name, fn) {
+  addSuiteFunction(suite, 'afterEach', name, fn);
  };
  ['alert', 'debug', 'trace'].forEach(function (type) {
   scope[type] = function () {
@@ -2143,8 +2220,11 @@ var tree = function (options) {
   };
  });
  scope.trace.lead = 5;
- function addSuiteFunction(suite, key, fn) {
-  process.assert(typeof fn == 'function', 'Exam `' + key + '` accepts a function as its only argument.');
+ function addSuiteFunction(suite, key, name, fn) {
+  if (typeof name == 'function') {
+   fn = name;
+   name = key;
+  }
   var fns = suite[key];
   if (!fns) {
    suite[key] = fn;
@@ -2230,6 +2310,103 @@ var tree = function (options) {
  var context = root;
  next();
 };
+var runBenchmark = function (done) {
+ var node = this;
+ var limit = Date.now() + node.timeLimit * 0.9;
+ var sampleRuns = node.sampleRuns || 10;
+ var runIndex;
+ var minimumPasses = node.minimumPasses || 10;
+ var passCount = 0;
+ var children = Array.prototype.slice.call(node.children);
+ var childIndex;
+ var child;
+ var start;
+ var fn;
+ children.forEach(initStats);
+ nextPass();
+ function initStats(node) {
+  node.passes = 0;
+  node.speed = 0;
+  node.variance = 0;
+ }
+ function recordSpeed(node, speed) {
+  node.passes++;
+  node.speed += (speed - node.speed) / passCount;
+  node.variance += (Math.pow(speed - node.speed, 2) - node.variance) / passCount;
+ }
+ function nextPass() {
+  passCount++;
+  childIndex = runIndex = 0;
+  nextChild();
+ }
+ function nextChild() {
+  child = children[childIndex++];
+  if (child) {
+   fn = child.fn;
+   var runFn = /^function.*?\([^\s\)]/.test(fn.toString()) ? runAsync : runSync;
+   start = process.hrtime();
+   runFn();
+  }
+  else {
+   calculateStats();
+  }
+ }
+ function runSync() {
+  for (runIndex = 0; runIndex < sampleRuns; runIndex++) {
+   fn.call(child);
+  }
+  finishChild();
+ }
+ function runAsync() {
+  if (runIndex++ < sampleRuns) {
+   fn.call(child, runAsync);
+  }
+  else {
+   finishChild();
+  }
+ }
+ //
+ function finishChild() {
+  var end = process.hrtime();
+  var nanos = (end[0] - start[0]) * 1e9 + end[1] - start[1];
+  recordSpeed(child, sampleRuns / nanos * 1e9);
+  nextChild();
+ }
+ function sortBySpeed(array) {
+  array.sort(function (a, b) {
+   return b.speed - a.speed;
+  });
+ }
+ function calculateStats() {
+  sortBySpeed(children);
+  if (passCount >= minimumPasses) {
+   for (var i = children.length - 1; i > 0; i--) {
+    var last = children[i];
+    var next = children[i - 1];
+    var error = Math.sqrt((next.variance + last.variance) / passCount);
+    var z = Math.abs(next.speed - last.speed) / error;
+    if (z > 2.576) {
+     var child = children.pop();
+     child.slower = true;
+    }
+    else {
+     break;
+    }
+   }
+  }
+  if (children.length > 1 && Date.now() < limit) {
+   setImmediate(nextPass);
+  }
+  else {
+   var best = children[0];
+   sortBySpeed(node.children);
+   node.children.forEach(function (child) {
+    child.time = best.speed / child.speed;
+   });
+   done();
+  }
+ }
+};
 var base, red, green, cyan, magenta, yellow, gray, white;
 var dot, ex, arrow, bullets;
 var width = 100;
@@ -2265,7 +2442,7 @@ exam.console = {
  start: function (options) {
   this.init(options);
   if (!options.hideAscii) {
-   var version = '0.2.1';
+   var version = '0.2.4';
    var art = [
     gray + (new Array(width)).join('='),
     yellow + '  ' + gray + '  _',
@@ -2299,9 +2476,10 @@ exam.console = {
   return JSON.colorize(data, 0, '  ', '', width - 9);
  },
  finishTree: function (run, data) {
+  var self = this;
   var options = run.options;
-  this.init(options);
-  this.stream.write('');
+  self.init(options);
+  self.stream.write('');
   var hasOnly = data.hasOnly;
   var dive = function (node, indent) {
    var name = node.name;
@@ -2311,7 +2489,6 @@ exam.console = {
    var hide = hasOnly && skip;
    var error = (stub || skip) ? '' : node.error;
    var children = node.children;
-   var color = error ? red : stub ? cyan : skip ? yellow : children ? base : gray;
    var key = error ? 'failed' : skip ? 'skipped' : stub ? 'stubbed' : 'passed';
    var results = node.results;
    var logs = node.logs;
@@ -2324,6 +2501,7 @@ exam.console = {
     }
     title = title.replace(/([^\.])$/, '$1' + gray);
     if (error) {
+     error.stack = (error.stack || (error || '')).replace(/(\/exam\/exam\.js:\d+:\d+\))[\s\S]*$/, '$1');
      (data.errors = data.errors || []).push(title + '\n    ' + snippetStack(error, {
       indent: '      ',
       lead: 5,
@@ -2374,9 +2552,17 @@ exam.console = {
     else {
      data[key]++;
      if (!hide) {
-      data.output += indent + bullets[key] + name;
-      if (key == 'passed' && (time >= options.slow)) {
-       data.output += (time >= options.verySlow ? red : yellow) + ' (' + time + 'ms)';
+      if (node.speed) {
+       var speed = self.whole(node.speed);
+       var deviation = self.whole(Math.sqrt(node.variance) + 1);
+       var bullet = node.slower ? (node.time >= 10 ? '• '.red  : '• '.yellow) : bullets.passed;
+       data.output += indent + bullet + name.base + ': '.gray + speed + ' op/s' + (' ±' + deviation).gray + ' over ' + node.passes + ' passes';
+      }
+      else {
+       data.output += indent + bullets[key] + name;
+       if (key == 'passed' && (time >= options.slow)) {
+        data.output += (time >= options.verySlow ? red : yellow) + ' (' + time + 'ms)';
+       }
       }
       if (error && results) {
        results.forEach(function (result) {
@@ -2400,6 +2586,15 @@ exam.console = {
   };
   dive(run);
   return data;
+ },
+ whole: function (number) {
+  return ('' + Math.floor(number))
+   .replace(/(\d\d)\d{9}$/, '$1B')
+   .replace(/(\d)(\d)\d{8}$/, '$1.$2B')
+   .replace(/(\d\d)\d{6}$/, '$1M')
+   .replace(/(\d)(\d)\d{5}$/, '$1.$2M')
+   .replace(/(\d\d)\d{3}$/, '$1K')
+   .replace(/(\d)(\d)\d{2}$/, '$1.$2K');
  },
  finishExam: function (data) {
   var output = data.outputs.join('');

@@ -1,7 +1,7 @@
 /**
  * Stringify JSON with colors for console logging.
  *
- * @origin lighter-common/common/json/colorize.js
+ * @origin https://github.com/lighterio/lighter-common/common/json/colorize.js
  * @version 0.0.1
  * @import string/colors
  */
@@ -90,7 +90,6 @@ JSON.colorize = module.exports = function (data, stack, space, indent, maxWidth,
             }
           }
         }
-        stack.pop();
         if (space) {
           if (parts.length) {
             length += (parts.length - 1) * 2;
@@ -112,6 +111,7 @@ JSON.colorize = module.exports = function (data, stack, space, indent, maxWidth,
           data = '{'.gray + data + '}'.gray;
         }
       }
+      stack.pop();
     }
   }
   else if (stack && !color) {

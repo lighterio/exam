@@ -106,7 +106,7 @@ describe('mock', function () {
 
   describe('.args', function () {
 
-    it('stores arguments', function () {
+    xit('stores arguments', function () {
       mock(a, {
         push: mock.args()
       });

@@ -11,8 +11,8 @@
  * - `emitter._events` doesn't exist until you've added listeners, and it is
  *   deleted if you remove all listeners.
  *
- * @origin lighter-common/common/events/emitter.js
- * @version 0.0.4
+ * @origin https://github.com/lighterio/lighter-common/common/events/emitter.js
+ * @version 0.0.5
  * @import object/type
  */
 
@@ -171,6 +171,16 @@ var Emitter = module.exports = Type.extend({
         delete self._events;
       }
     }
+    return self;
+  },
+
+  /**
+   * Set one listener for a type of event (replacing any others).
+   */
+  one: function (type, fn) {
+    var self = this;
+    var events = self._events = self._events || {};
+    events[type] = fn;
     return self;
   }
 
