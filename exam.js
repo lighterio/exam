@@ -2313,9 +2313,9 @@ var tree = function (options) {
 var runBenchmark = function (done) {
  var node = this;
  var limit = Date.now() + node.timeLimit * 0.9;
- var sampleRuns = node.sampleRuns || 10;
+ var sampleSize = node.sampleSize || 10;
  var runIndex;
- var minimumPasses = node.minimumPasses || 10;
+ var minimumSamples = node.minimumSamples || 10;
  var passCount = 0;
  var children = Array.prototype.slice.call(node.children);
  var childIndex;
@@ -2352,13 +2352,13 @@ var runBenchmark = function (done) {
   }
  }
  function runSync() {
-  for (runIndex = 0; runIndex < sampleRuns; runIndex++) {
+  for (runIndex = 0; runIndex < sampleSize; runIndex++) {
    fn.call(child);
   }
   finishChild();
  }
  function runAsync() {
-  if (runIndex++ < sampleRuns) {
+  if (runIndex++ < sampleSize) {
    fn.call(child, runAsync);
   }
   else {
@@ -2369,7 +2369,7 @@ var runBenchmark = function (done) {
  function finishChild() {
   var end = process.hrtime();
   var nanos = (end[0] - start[0]) * 1e9 + end[1] - start[1];
-  recordSpeed(child, sampleRuns / nanos * 1e9);
+  recordSpeed(child, sampleSize / nanos * 1e9);
   nextChild();
  }
  function sortBySpeed(array) {
@@ -2379,7 +2379,7 @@ var runBenchmark = function (done) {
  }
  function calculateStats() {
   sortBySpeed(children);
-  if (passCount >= minimumPasses) {
+  if (passCount >= minimumSamples) {
    for (var i = children.length - 1; i > 0; i--) {
     var last = children[i];
     var next = children[i - 1];
