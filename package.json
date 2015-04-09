@@ -1,6 +1,6 @@
 {
   "name": "exam",
-  "version": "0.2.4",
+  "version": "1.0.0",
   "description": "Clustered JavaScript test runner with builtin assertions",
   "dependencies": {
     "acorn": "0.11.0",
