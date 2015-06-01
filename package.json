@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "esprima": "1.2.3",
-    "chug": "^0.3.1"
+    "chug": "^1.0.0"
   },
   "keywords": [
     "exam",
