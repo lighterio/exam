@@ -10,21 +10,21 @@
  * @import object/lru-cache
  */
 
-var LruCache = require('../object/lru-cache');
+var LruCache = require('../object/lru-cache')
 
 // Initialize the cache if it doesn't already exist.
-var cacheKey = '_lighterProcessCache_0';
-var processCache = process[cacheKey];
+var cacheKey = '_lighterProcessCache_0'
+var processCache = process[cacheKey]
 if (!processCache) {
   Object.defineProperty(process, cacheKey, {
     enumerable: false,
     value: new LruCache()
-  });
-}
+  })
+
 // If it exists but doesn't look like a cache, replace it.
-else if (!processCache.get || !processCache.set) {
-  process[cacheKey] = new LruCache();
+} else if (!processCache.get || !processCache.set) {
+  process[cacheKey] = new LruCache()
 }
 
 // Export the cache, whether newly-created or existing.
-module.exports = process[cacheKey];
+module.exports = process[cacheKey]

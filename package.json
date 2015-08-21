@@ -6,7 +6,7 @@
     "acorn": "0.11.0",
     "coveralls": "2.11.2",
     "istanbul": "0.3.5",
-    "mock-fs": "^2.3.2"
+    "mock-fs": "^3.1.0"
   },
   "devDependencies": {
     "esprima": "1.2.3",

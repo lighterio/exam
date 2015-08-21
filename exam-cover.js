@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-var fork = require('child_process').fork;
-var cli = __dirname + '/node_modules/istanbul/lib/cli.js';
+var fork = require('child_process').fork
+var cli = __dirname + '/node_modules/istanbul/lib/cli.js'
 
 fork(cli, [
   'cover',
@@ -9,4 +9,4 @@ fork(cli, [
   '--color',
   '-x', '**/common/**',
   '-x', '**/node_modules/**'
-]);
+])
