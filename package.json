@@ -9,8 +9,7 @@
     "mock-fs": "^3.1.0"
   },
   "devDependencies": {
-    "esprima": "1.2.3",
-    "chug": "^1.0.0"
+    "esprima": "1.2.3"
   },
   "keywords": [
     "exam",
@@ -23,7 +22,7 @@
   "main": "exam.js",
   "bin": {
     "_exam": "lib/_exam.js",
-    "exam": "exam.js",
+    "exam": "lib/_exam.js",
     "exam-cover": "exam-cover.js",
     "exam-coveralls": "exam-coveralls.js",
     "exam-iojs": "exam-iojs.js"
