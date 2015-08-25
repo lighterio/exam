@@ -22,7 +22,7 @@
   "main": "exam.js",
   "bin": {
     "_exam": "lib/_exam.js",
-    "exam": "0.3.0",
+    "exam": "exam.js",
     "exam-cover": "exam-cover.js",
     "exam-coveralls": "exam-coveralls.js",
     "exam-iojs": "exam-iojs.js"
