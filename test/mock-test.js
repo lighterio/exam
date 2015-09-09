@@ -134,7 +134,9 @@ describe('mock', function () {
 
   })
 
-  describe('.fs', function () {
+  var describeFs = process.env.running_under_istanbul ? describe.skip : describe
+
+  describeFs('.fs', function () {
 
     afterEach(unmock.fs)
 
@@ -169,7 +171,7 @@ describe('mock', function () {
 
   })
 
-  describe('.file', function () {
+  describeFs('.file', function () {
 
     afterEach(unmock.fs)
 
