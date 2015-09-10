@@ -438,7 +438,7 @@ if (process.mainModule === module) {
     }
 
     // If testFiles have been assigned, run on one CPU, otherwise get assigments.
-    var treeLib = options.files ? require(dir + '/tree') : exam
+    var treeLib = options.files ? require(dir + '/lib/tree') : exam
     treeLib(options)
   })
 }
