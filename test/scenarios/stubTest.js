@@ -1,5 +1,5 @@
 describe('stubTest', function () {
 
-  it('stubs this test');
+  it('stubs this test')
 
-});
+})

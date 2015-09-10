@@ -772,7 +772,7 @@ it uses [mock-fs](https://www.npmjs.org/package/mock-fs), so thanks are due to
 [TJ Holowaychuk](https://github.com/visionmedia),
 [Tim Schaub](https://github.com/tschaub), and all of their contributors.
 
-Additionally, huge thanks go to [TUNE](http://www.tune.com) for employing
+Additionally, huge thanks go to [Goin’](https://goin.io) for employing
 and supporting [Exam](http://lighter.io/exam) project maintainers,
 and for being an epically awesome place to work (and play).
 
