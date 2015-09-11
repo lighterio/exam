@@ -427,6 +427,11 @@ if (process.mainModule === module) {
       version: exam.version
     })
 
+    // When watching, each run should spawn clean child processes.
+    if (options.watch) {
+      options.multiProcess = true
+    }
+
     // Use "test" as the default path.
     options.paths[0] = options.paths[0] || 'test'
 
