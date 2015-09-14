@@ -15,8 +15,6 @@ results
 coverage
 node_modules
 build
-test
-benchmarks
 .travis.yml
 .npmignore
 .editorconfig

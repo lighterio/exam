@@ -4,6 +4,7 @@
 [![Build Status](https://img.shields.io/travis/lighterio/exam.svg)](https://travis-ci.org/lighterio/exam)
 [![Code Coverage](https://img.shields.io/coveralls/lighterio/exam/master.svg)](https://coveralls.io/r/lighterio/exam)
 [![Dependencies](https://img.shields.io/david/lighterio/exam.svg)](https://david-dm.org/lighterio/exam)
+[![Standard Style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](https://github.com/feross/standard)
 [![Support](https://img.shields.io/gratipay/Lighter.io.svg)](https://gratipay.com/Lighter.io/)
 
 
