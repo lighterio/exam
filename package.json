@@ -1,15 +1,17 @@
 {
   "name": "exam",
-  "version": "0.3.5",
+  "version": "0.3.7",
   "description": "Clustered JavaScript test runner with builtin assertions",
   "dependencies": {
     "acorn": "0.11.0",
     "coveralls": "2.11.2",
-    "istanbul": "0.3.5",
-    "mock-fs": "^3.1.0"
+    "istanbul": "0.3.5"
   },
   "devDependencies": {
     "esprima": "1.2.3"
+  },
+  "optionalDependencies": {
+    "mock-fs": "^3.2.0"
   },
   "keywords": [
     "exam",
