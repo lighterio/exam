@@ -1,28 +1,32 @@
 # <a href="http://lighter.io/exam" style="font-size:40px;text-decoration:none;color:#000"><img src="https://cdn.rawgit.com/lighterio/lighter.io/master/public/exam.svg" style="width:90px;height:90px"> Exam</a>
-[![NPM Version](https://img.shields.io/npm/v/exam.svg)](https://npmjs.org/package/exam)
-[![Downloads](https://img.shields.io/npm/dm/exam.svg)](https://npmjs.org/package/exam)
-[![Build Status](https://img.shields.io/travis/lighterio/exam.svg)](https://travis-ci.org/lighterio/exam)
-[![Code Coverage](https://img.shields.io/coveralls/lighterio/exam/master.svg)](https://coveralls.io/r/lighterio/exam)
-[![Dependencies](https://img.shields.io/david/lighterio/exam.svg)](https://david-dm.org/lighterio/exam)
-[![Standard Style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](https://github.com/feross/standard)
-[![Support](https://img.shields.io/gratipay/Lighter.io.svg)](https://gratipay.com/Lighter.io/)
+[![Chat](https://badges.gitter.im/chat.svg)](//gitter.im/lighterio/public)
+[![Version](https://img.shields.io/npm/v/exam.svg)](//www.npmjs.com/package/exam)
+[![Downloads](https://img.shields.io/npm/dm/exam.svg)](//www.npmjs.com/package/exam)
+[![Build](https://img.shields.io/travis/lighterio/exam.svg)](//travis-ci.org/lighterio/exam)
+[![Coverage](https://img.shields.io/coveralls/lighterio/exam/master.svg)](//coveralls.io/r/lighterio/exam)
+[![Style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](//github.com/feross/standard)
 
 
 Exam is a JavaScript test runner, designed to be fast and easy. Its powerful
 features are designed to give you everything you need for testing, and more:
-* A terse assertion library called `is` (or use your own).
-* A fast mocking library called `mock` (or use your own).
-* Tests can be distributed across CPUs for speed.
-* Deferred alert/debug/trace.
+* Simple `describe` and `it` functions, like Mocha or Jasmine.
+* Simple benchmarking with the `bench` function.
+* Simple deferred logging with `alert`, `debug` and `trace` functions.
+* Fast assertions with `is` (or use your own).
+* Fast mocking with `mock` (or use your own).
+* Exam `console` reporter, similar to Mocha's `spec` reporter.
+* Multi-CPU test distribution for faster speeds on large test suites.
 
-### Quick Start
+## Quick Start
 
-Install `exam`:
+Install `exam` globally, or as a dev dependency:
 ```bash
-sudo npm install -g exam
+sudo npm install --global exam
+cd PROJECT_DIR
+npm install --save-dev exam
 ```
 
-Write some tests in `test/*`:
+Write some tests in `test/*.js`:
 ```js
 var a = [1, 2, 3];
 describe('Array.indexOf()', function () {
@@ -40,6 +44,12 @@ describe('Array.indexOf()', function () {
 Run tests:
 ```bash
 exam
+```
+
+Run coverage testing, and open reports (if the `open` command is available):
+```bash
+exam-cover
+open coverage/lcov-report/index.html
 ```
 
 
@@ -69,6 +79,15 @@ Runs `fn` exclusively. Aliased as `it.only`.
 #### xit(name, fn)
 Sets up a test but skips it. Aliased as `it.skip`.
 
+#### bench(name, fn)
+Runs `fn` as a benchmark.
+
+#### bbench(name, fn)
+Runs `fn` exclusively. Aliased as `bench.only`.
+
+#### xbench(name, fn)
+Sets up a benchmark but skips it. Aliased as `bench.skip`.
+
 #### before(fn)
 Runs `fn`** before a suite.
 
@@ -83,9 +102,6 @@ Runs `fn` after each test in a suite.
 
 #### setup/teardown
 Aliases for before/after.
-
-#### bench(name, fn)
-Runs `fn` as a benchmark.
 
 ### Assertions and Mocks
 
@@ -649,11 +665,14 @@ determined which implementation is fastest, or until a timeout is reached -
 whichever comes first.
 
 The `bench` function's `this` context has properties which can be modified:
-* **sampleSize** - `number` The number of times to run each `it` function
-  inside the suite before taking a timing sample.
-* **minimumSamples** - `number` The number of timing samples to take before
-  the first statistical significance calculation for determining which is
-  fastest.
+* **benchTime** - `number` The number of milliseconds to spend running the set
+  of `it` functions under a `bench` function. The default is 60000ms (1min),
+  which is inherited from the `--bench-time` flag.
+* **z** - `number` The z-score that is required before declaring a winner. The
+  default is 2.576, which equates to 99% confidence.
+* **stopZ** - `number` The z-score that results in a benchmark halting
+  execution of a test that is clearly far slower than the fastest. The default
+  is 30, which is a ridiculously high z-score.
 
 ## Running exam
 
@@ -673,12 +692,14 @@ sudo npm install -g exam
 exam [options] [paths...]
 ```
 
-For example, to run "test/a-test.js" and "test/b-test.js" in multiple processes and watch for changes:
+For example, to run "test/a-test.js" and "test/b-test.js" in multiple processes
+and watch for changes:
 ```bash
 exam --multi-process --watch test/a-test test/b-test
 ```
 
-If there are no `paths` arguments, the path is assumed to be `test`, so test files include all files directly under the `test` directory.
+If there are no `paths` arguments, the path is assumed to be `test`, so test
+files include all files directly under the `test` directory.
 
 #### Options
 
@@ -701,10 +722,12 @@ Which library will be used to output results. Options include "console",
 "tap", "xunit" and "counts". *Default: "console"*.
 
 **-G, --no-globals**<br>
-Do not add functions such as `it` and `describe` to the global scope. Instead, add those functions to the `exam` object.
+Do not add functions such as `it` and `describe` to the global scope. Instead,
+add those functions to the `exam` object.
 
 **-v, --recursive**<br>
-Use the default `test` directory, or any directories specified as `paths`, and read their contents recursively, running any encountered files as tests.
+Use the default `test` directory, or any directories specified as `paths`, and
+read their contents recursively, running any encountered files as tests.
 
 **-p, --parser <parser>**<br>
 Which EcmaScript parser will be used to handle syntax errors. Options include
@@ -717,10 +740,10 @@ Exit after the first test failure.
 Stop a test after one failed assertion.
 
 **-g, --grep <regexp>**<br>
-Only run files/tests that match a regular expressi. (RegExp)',
+Only run files/tests that match a regular expression.
 
 **-i, --ignore <regexp>**<br>
-Exclude files/tests that match a regular expressi. (RegExp)',
+Exclude files/tests that match a regular expression.
 
 **-d, --debug**<br>
 Run `node` with the --debug flag.
@@ -729,22 +752,28 @@ Run `node` with the --debug flag.
 Spawn child processes, creating a cluster of test runners.
 
 **-t, --timeout <millis>**<br>
-Test case timeout in milliseconds (Number) [1000].
+Test case timeout in milliseconds. (Default: 1000)
 
 **-s, --slow <millis>**<br>
-Slow test (yellow warning) threshold in millisecon. (Number) [10]',
+Threshold for a slow test (yellow) warning in milliseconds. (Default: 10)
 
 **-S, --very-slow <millis>**<br>
-Very slow (red warning) threshold in milliseconds (Numbe. [100]',
+Threshold for a very slow (red) warning in milliseconds. (Default: 100)
 
 **-A, --hide-ascii**<br>
-Do not show ASCII art before the run.
+Do not show ASCII art before the test run.
 
 **-P, --hide-progress**<br>
-Do not show dots as tests run.
+Do not show passing/failing dots as tests run.
 
 **-C, --no-colors**<br>
 Turn off color console logging.
+
+**-B, --bench**<br>
+Run benchmarks along with the test suite.
+
+**-T, --bench-time**<br>
+Run each benchmark for a specified number of milliseconds. (Default: 60000)
 
 
 ### Module
@@ -773,83 +802,6 @@ it uses [mock-fs](https://www.npmjs.org/package/mock-fs), so thanks are due to
 [TJ Holowaychuk](https://github.com/visionmedia),
 [Tim Schaub](https://github.com/tschaub), and all of their contributors.
 
-Additionally, huge thanks go to [Goin’](https://goin.io) for employing
+Additionally, huge thanks go to [eBay](http://www.ebay.com) for employing
 and supporting [Exam](http://lighter.io/exam) project maintainers,
 and for being an epically awesome place to work (and play).
-
-
-## MIT License
-
-Copyright (c) 2014 Sam Eubank
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-
-## How to Contribute
-
-We welcome contributions from the community and are happy to have them.
-Please follow this guide when logging issues or making code changes.
-
-### Logging Issues
-
-All issues should be created using the
-[new issue form](https://github.com/lighterio/exam/issues/new).
-Please describe the issue including steps to reproduce. Also, make sure
-to indicate the version that has the issue.
-
-### Changing Code
-
-Code changes are welcome and encouraged! Please follow our process:
-
-1. Fork the repository on GitHub.
-2. Fix the issue ensuring that your code follows the
-   [style guide](http://lighter.io/style-guide).
-3. Add tests for your new code, ensuring that you have 100% code coverage.
-   (If necessary, we can help you reach 100% prior to merging.)
-   * Run `npm test` to run tests quickly, without testing coverage.
-   * Run `npm run cover` to test coverage and generate a report.
-   * Run `npm run report` to open the coverage report you generated.
-4. [Pull requests](http://help.github.com/send-pull-requests/) should be made
-   to the [master branch](https://github.com/lighterio/exam/tree/master).
-
-### Contributor Code of Conduct
-
-As contributors and maintainers of Exam, we pledge to respect all
-people who contribute through reporting issues, posting feature requests,
-updating documentation, submitting pull requests or patches, and other
-activities.
-
-If any participant in this project has issues or takes exception with a
-contribution, they are obligated to provide constructive feedback and never
-resort to personal attacks, trolling, public or private harassment, insults, or
-other unprofessional conduct.
-
-Project maintainers have the right and responsibility to remove, edit, or
-reject comments, commits, code, edits, issues, and other contributions
-that are not aligned with this Code of Conduct. Project maintainers who do
-not follow the Code of Conduct may be removed from the project team.
-
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported by opening an issue or contacting one or more of the project
-maintainers.
-
-We promise to extend courtesy and respect to everyone involved in this project
-regardless of gender, gender identity, sexual orientation, ability or
-disability, ethnicity, religion, age, location, native language, or level of
-experience.

@@ -239,7 +239,7 @@ describe('mock', function () {
 
     describe('.speed', function () {
 
-      it('speeds mock time', function (done) {
+      it.skip('speeds mock time', function (done) {
 
         var time = 1412637494591
         var speed = 99
