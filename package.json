@@ -1,14 +1,14 @@
 {
   "name": "exam",
-  "version": "0.3.8",
+  "version": "1.0.0",
   "description": "Clustered JavaScript test runner with builtin assertions.",
   "dependencies": {
-    "acorn": "0.11.0",
-    "coveralls": "2.11.2",
-    "istanbul": "0.3.5"
+    "acorn": "2.4.0",
+    "coveralls": "2.11.4",
+    "istanbul": "0.3.21"
   },
   "devDependencies": {
-    "esprima": "1.2.3"
+    "esprima": "2.6.0"
   },
   "optionalDependencies": {
     "mock-fs": "^3.2.0"
@@ -44,5 +44,5 @@
   "contributors": [
     "Sam Eubank <sameubank@gmail.com>"
   ],
-  "license": "MIT"
+  "license": "ISC"
 }

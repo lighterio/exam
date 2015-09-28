@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+// TODO: Bundle as exam.min.js for speed.
+// TODO: Bundle a karma-compatible version for front end testing.
 var dir = __dirname
 var fs = require('fs')
 var spawn = require('child_process').spawn
@@ -401,27 +403,30 @@ if (process.mainModule === module) {
     // Get command line interface options.
     var options = cli({
       options: [
-        '-h, --help                Show usage information',
-        '-w, --watch               When changes are made, re-run tests',
-        '-V, --version             Show the version number',
-        '-r, --require <modules>   Require a comma-delimited list of modules (Array)',
-        '-R, --reporter <name>     Result reporter ("console", "tap", "xunit" or "counts") [console]',
-        '-G, --no-globals          Do not add "it", "describe", etc. to global scope',
-        '-v, --recursive           Load test files recursively',
-        '-p, --parser <parser>     EcmaScript parser ("acorn", "esprima", or "none") (String) [acorn]',
-        '-b, --bail                Exit after the first test failure',
-        '-a, --assertive           Stop a test after one failed assertion',
-        '-g, --grep <regexp>       Only run files/tests that match a regular expression (RegExp)',
-        '-i, --ignore <regexp>     Exclude files/tests that match a regular expression (RegExp)',
-        '-d, --debug               Run `node` with the --debug flag',
-        '-m, --multi-process       Spawn child processes, creating a cluster of test runners.',
-        '-t, --timeout <millis>    Test case timeout in milliseconds (Number) [1000]',
-        '-s, --slow <millis>       Slow test (yellow warning) threshold in milliseconds (Number) [10]',
-        '-S, --very-slow <millis>  Very slow (red warning) threshold in milliseconds (Number) [100]',
-        '-A, --hide-ascii          Do not show ASCII art before the run',
-        '-P, --hide-progress       Do not show dots as tests run',
-        '-C, --no-colors           Turn off color console logging',
-        '-f, --files <files>       HIDDEN (Array)'
+        '-h, --help                 Show usage information',
+        '-w, --watch                When changes are made, re-run tests',
+        '-V, --version              Show the version number',
+        '-r, --require <modules>    Require a comma-delimited list of modules (Array)',
+        '-R, --reporter <name>      Result reporter ("console", "tap", "xunit" or "counts") [console]',
+        '-G, --no-globals           Do not add "it", "describe", etc. to global scope',
+        '-v, --recursive            Load test files recursively',
+        '-p, --parser <parser>      EcmaScript parser ("acorn", "esprima", or "none") (String) [acorn]',
+        '-b, --bail                 Exit after the first test failure',
+        '-a, --assertive            Stop a test after one failed assertion',
+        '-g, --grep <regexp>        Only run files/tests that match a regular expression (RegExp)',
+        '-i, --ignore <regexp>      Exclude files/tests that match a regular expression (RegExp)',
+        '-d, --debug                Run `node` with the --debug flag',
+        '-m, --multi-process        Spawn child processes, creating a cluster of test runners.',
+        '-t, --timeout <millis>     Test case timeout in milliseconds (Number) [1000]',
+        '-s, --slow <millis>        Slow test (yellow warning) threshold in milliseconds (Number) [10]',
+        '-y, --very-slow <millis>   Very slow (red warning) threshold in milliseconds (Number) [100]',
+        '-A, --hide-ascii           Do not show ASCII art before the run',
+        '-P, --hide-progress        Do not show dots as tests run',
+        '-C, --no-colors            Turn off color console logging',
+        '-B, --bench                Run benchmarks along with the test suite',
+        '-T, --bench-time <millis>  Milliseconds allocated to each benchmark (Number) [60000]',
+        '-l, --linter <name>        Linter ("lighter-lint" or "none") [none]',
+        '-f, --files <files>        HIDDEN (Array)'
       ],
       extras: 'paths',
       version: exam.version
@@ -440,6 +445,17 @@ if (process.mainModule === module) {
       console.error('Unknown parser: "' + options.parser + '".')
       console.error('  Expected "acorn", "esprima", or "none".')
       process.exit()
+    }
+
+    // Force numbers.
+    options.timeout *= 1
+    options.slow *= 1
+    options.verySlow *= 1
+    options.benchTime *= 1
+
+    // If the benchmark time is not the default, run benchmarks.
+    if (options.benchTime !== 6e4) {
+      options.bench = true
     }
 
     // If testFiles have been assigned, run on one CPU, otherwise get assigments.
