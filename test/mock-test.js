@@ -134,7 +134,15 @@ describe('mock', function () {
 
   })
 
-  var describeFs = process.env.running_under_istanbul ? describe.skip : describe
+  var supportMockFs
+  var isIstanbul = process.env.running_under_istanbul
+  try {
+    require('mock-fs')
+    supportMockFs = true
+  } catch (ignore) {
+    supportMockFs = false
+  }
+  var describeFs = supportMockFs && !isIstanbul ? describe : describe.skip
 
   describeFs('.fs', function () {
 
