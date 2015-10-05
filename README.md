@@ -1,10 +1,10 @@
-# <a href="http://lighter.io/exam" style="font-size:40px;text-decoration:none;color:#000"><img src="https://cdn.rawgit.com/lighterio/lighter.io/master/public/exam.svg" style="width:90px;height:90px"> Exam</a>
+# <a href="http://lighter.io/exam" style="font-size:40px;text-decoration:none"><img src="https://cdn.rawgit.com/lighterio/lighter.io/master/public/exam.svg" style="width:90px;height:90px"> Exam</a>
 [![Chat](https://badges.gitter.im/chat.svg)](//gitter.im/lighterio/public)
 [![Version](https://img.shields.io/npm/v/exam.svg)](//www.npmjs.com/package/exam)
 [![Downloads](https://img.shields.io/npm/dm/exam.svg)](//www.npmjs.com/package/exam)
 [![Build](https://img.shields.io/travis/lighterio/exam.svg)](//travis-ci.org/lighterio/exam)
 [![Coverage](https://img.shields.io/coveralls/lighterio/exam/master.svg)](//coveralls.io/r/lighterio/exam)
-[![Style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](//github.com/feross/standard)
+[![Style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](//www.npmjs.com/package/standard)
 
 
 Exam is a JavaScript test runner, designed to be fast and easy. Its powerful
@@ -791,17 +791,8 @@ exam({
 ```
 
 
-## Acknowledgements
-
-We would like to thank all of the amazing people who use, support,
-promote, enhance, document, patch, and submit comments & issues.
-Exam couldn't exist without you.
-
-Exam is heavily influenced by [mocha](https://www.npmjs.org/package/mocha), and
-it uses [mock-fs](https://www.npmjs.org/package/mock-fs), so thanks are due to
-[TJ Holowaychuk](https://github.com/visionmedia),
-[Tim Schaub](https://github.com/tschaub), and all of their contributors.
-
-Additionally, huge thanks go to [eBay](http://www.ebay.com) for employing
-and supporting [Exam](http://lighter.io/exam) project maintainers,
-and for being an epically awesome place to work (and play).
+## More on Exam...
+* [Contributing](//github.com/lighterio/exam/blob/master/CONTRIBUTING.md)
+* [License (ISC)](//github.com/lighterio/exam/blob/master/LICENSE.md)
+* [Change Log](//github.com/lighterio/exam/blob/master/CHANGELOG.md)
+* [Roadmap](//github.com/lighterio/exam/blob/master/ROADMAP.md)
