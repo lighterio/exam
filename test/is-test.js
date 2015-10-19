@@ -1,3 +1,5 @@
+'use strict'
+/* global describe it xit beforeEach is mock unmock */
 var assert = require('assert')
 
 describe('is', function () {
@@ -15,8 +17,8 @@ describe('is', function () {
 
   beforeEach(function () {
     mock(is, {
-      pass: function () { ok = true; },
-      fail: function () { ok = false; }
+      pass: function () { ok = true },
+      fail: function () { ok = false }
     })
     ok = undefined
   })
@@ -122,7 +124,7 @@ describe('is', function () {
     d.c = d
     d.o = {d: c}
     is.same(c, d); pass()
-    is.same(function a () {hello();}, function a () {hello();}); pass()
+    is.same(function a () { hello() }, function a () { hello() }); pass()
     is.same(1, 2); fail()
   })
 

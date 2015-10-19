@@ -103,6 +103,22 @@ Runs `fn` after each test in a suite.
 #### setup/teardown
 Aliases for before/after.
 
+### Timeouts
+The `this` object inside a test function such as `describe` or `it` has a
+`timeout` method that accepts a number of milliseconds. It resets a timeout
+that waits for test execution to complete. The default timeout is one second,
+so if you need longer, you can customize it.
+```js
+describe('External service', function () {
+  it('takes no more than ten seconds', function (done) {
+    this.timeout(10000)
+    service.makeRequest(function () {
+      done()
+    })
+  })
+})
+```
+
 ### Assertions and Mocks
 
 #### is(actual, expected)

@@ -1,8 +1,9 @@
+'use strict'
+/* global describe it is mock unmock */
 var exam = require('../exam')
 var pkg = require('../package')
 
 describe('Exam', function () {
-
   it('runs tests', function (done) {
     done()
   })
@@ -28,5 +29,4 @@ describe('Exam', function () {
       is(exam.version, pkg.version)
     })
   })
-
 })
