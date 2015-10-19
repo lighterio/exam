@@ -8,10 +8,10 @@
     "istanbul": "0.3.21"
   },
   "devDependencies": {
-    "esprima": ">=2.6.0"
+    "esprima": ">=2.6.0 <3"
   },
   "optionalDependencies": {
-    "mock-fs": ">=3.2.0"
+    "mock-fs": ">=3.2.0 <4"
   },
   "bundledDependencies": [
     "mock-fs",
