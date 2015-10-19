@@ -1,18 +1,24 @@
 {
   "name": "exam",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Clustered JavaScript test runner with builtin assertions.",
   "dependencies": {
-    "acorn": "2.4.0",
-    "coveralls": "2.11.4",
-    "istanbul": "^0.3.21"
+    "acorn": ">=2.4.0 <3",
+    "coveralls": ">=2.11.4 <3",
+    "istanbul": "0.3.21"
   },
   "devDependencies": {
-    "esprima": "2.6.0"
+    "esprima": ">=2.6.0"
   },
   "optionalDependencies": {
-    "mock-fs": "^3.2.0"
+    "mock-fs": ">=3.2.0"
   },
+  "bundledDependencies": [
+    "mock-fs",
+    "acorn",
+    "coveralls",
+    "istanbul"
+  ],
   "keywords": [
     "exam",
     "test",
@@ -28,7 +34,7 @@
     "exam-coveralls": "exam-coveralls.js"
   },
   "engines": {
-    "node": ">=0.8.28"
+    "node": ">=0.10.40"
   },
   "scripts": {
     "build": "node .chug.js",
