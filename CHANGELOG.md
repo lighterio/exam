@@ -1,5 +1,8 @@
 # Exam Change Log
 
+## v1.2.1 - 2015-10-20
+* `patch` Added versions to the console reporter ASCII art.
+
 ## v1.2.0 - 2015-10-19
 * `minor` Supporting node 4.2.X.
 * `minor` Bundled dependencies.
