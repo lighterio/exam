@@ -22,7 +22,7 @@ var snippetStack = module.exports = function (stack, options) {
   var color = options.color || 'red'
   var ignore = options.ignore || 0
   stack = stack.replace(
-    /\n +at ([^:\n]+ )?(\(|)(\/[^:]+\/|vm-run:)([^\/:]+):(\d+):(\d+)(\)?)/g,
+    /\n +at ([^:\n]+ )?(\(|)(\/[^:]+\/|vm:)([^\/:]+):(\d+):(\d+)(\)?)/g,
     function (match, name, start, dir, file, line, column, end) {
       if (ignore && ignore.test(dir)) {
         return match

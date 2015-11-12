@@ -5,7 +5,7 @@
   "dependencies": {
     "acorn": ">=2.4.0 <3",
     "coveralls": ">=2.11.4 <3",
-    "istanbul": "0.3.21"
+    "istanbul": "0.4.0"
   },
   "devDependencies": {
     "esprima": ">=2.6.0 <3"
