@@ -1,5 +1,8 @@
 # Exam Change Log
 
+## v1.2.3 - 2015-11-12
+* `patch` Made JSON.stringify accept a numeric 3rd argument.
+
 ## v1.2.2 - 2015-11-12
 * `patch` Upgraded to istanbul, acorn and esprima dependencies.
 

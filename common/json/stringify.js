@@ -2,7 +2,7 @@
  * Wrap the native JSON.stringify with a circular-safe method.
  *
  * @origin https://github.com/lighterio/lighter-common/common/json/stringify.js
- * @version 0.0.2
+ * @version 0.0.3
  */
 
 // If JSON.nativeStringify doesn't exist, we have yet to wrap JSON.stringify.
@@ -57,13 +57,15 @@ if (!JSON.nativeStringify) {
     return value
   }
 
-  // Stringify, optionally using an replacer function.
+  // Stringify, optionally using a replacer function.
   JSON.stringify = function (value, replacer, space) {
-    return replacer ?
-      nativeStringify(value, replacer, space) :
-      stringify(value, [], space)
+    if (typeof space === 'number') {
+      space = (new Array(space + 1)).join(' ')
+    }
+    return replacer
+      ? nativeStringify(value, replacer, space)
+      : stringify(value, [], space)
   }
-
 }
 
 // Export, in case someone is using the function directly.
