@@ -1,5 +1,8 @@
 # Exam Change Log
 
+## v1.2.2 - 2015-11-12
+* `patch` Upgraded to istanbul, acorn and esprima dependencies.
+
 ## v1.2.1 - 2015-10-20
 * `patch` Added versions to the console reporter ASCII art.
 
