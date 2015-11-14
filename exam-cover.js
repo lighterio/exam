@@ -1,13 +1,26 @@
 #!/usr/bin/env node
+/*
 
-var fork = require('child_process').fork
-var cli = __dirname + '/node_modules/istanbul/lib/cli.js'
+Usage:
+  exam-cover [EXAM_ARGS] [-- ISTANBUL_ARGS]
 
-// TODO: Pass exam-cover arguments to exam.
-fork(cli, [
-  'cover',
-  __dirname + '/exam.js',
-  '--color',
-  '-x', '**/common/**',
-  '-x', '**/node_modules/**'
-])
+Description:
+  Run exam tests using the istanbul cover command.
+
+*/
+var spawn = require('child_process').spawn
+var examCli = __dirname + '/exam.js'
+var istanbulCli = __dirname + '/node_modules/istanbul/lib/cli.js'
+
+var args = process.argv
+var dash = args.indexOf('--') + 1
+args.splice(0, 2, 'cover', examCli, '--')
+
+if (dash) {
+  args.splice(dash, 1)
+  var istanbulArgs = args.splice(dash, args.length - dash)
+  istanbulArgs.splice(0, 0, 2, 0)
+  args.splice.apply(args, istanbulArgs)
+}
+
+spawn(istanbulCli, args, {stdio: 'inherit'})
