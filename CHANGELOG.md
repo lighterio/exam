@@ -1,5 +1,8 @@
 # Exam Change Log
 
+## v1.3.0 - 2015-11-16
+* `minor` Made exam-cover and exam-coveralls accept istanbul arguments.
+
 ## v1.2.2 - 2015-11-12
 * `patch` Made JSON.stringify accept a numeric 3rd argument.
 * `patch` Upgraded to istanbul, acorn and esprima dependencies.
