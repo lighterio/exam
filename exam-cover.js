@@ -23,4 +23,4 @@ if (dash) {
   args.splice.apply(args, istanbulArgs)
 }
 
-spawn(istanbulCli, args, {stdio: 'inherit'})
+module.exports = spawn(istanbulCli, args, {stdio: 'inherit'})
