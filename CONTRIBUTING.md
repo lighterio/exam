@@ -62,6 +62,6 @@ it uses [mock-fs](https://www.npmjs.org/package/mock-fs), so thanks are due to
 [TJ Holowaychuk](https://github.com/visionmedia),
 [Tim Schaub](https://github.com/tschaub), and all of their contributors.
 
-Additionally, huge thanks go to [eBay](http://www.ebay.com) for employing
+Additionally, huge thanks go to [eBay](http://rover.ebay.com/rover/1/711-53200-19255-0/1?icep_ff3=9&pub=5575137484&toolid=10001&campid=5337778482&icep_uq=node.js&icep_sortBy=12&ipn=psmain&icep_vectorid=229466&kwid=902099&mtid=824&kw=lg) for employing
 and supporting [Exam](http://lighter.io/exam) project maintainers,
 and for being an epically awesome place to work (and play).
