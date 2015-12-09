@@ -6,6 +6,9 @@ today, and it can evolve over time.***
 ## New Logo
 Clipboards are not exciting.
 
+## Separate Libraries
+The `is` and `mock` libraries should be in their own packages.
+
 ## Exam Server
 It would be super duper nice to have a UI to run Exam tests.
 
