@@ -1,4 +1,4 @@
-# <a href="http://lighter.io/exam" style="font-size:40px;text-decoration:none"><img src="https://cdn.rawgit.com/lighterio/lighter.io/master/public/exam.svg" style="width:90px;height:90px"> Exam</a>
+# <a href="http://lighter.io/exam" style="font-size:40pxtext-decoration:none"><img src="https://cdn.rawgit.com/lighterio/lighter.io/master/public/exam.svg" style="width:90pxheight:90px"> Exam</a>
 [![Chat](https://badges.gitter.im/chat.svg)](//gitter.im/lighterio/public)
 [![Version](https://img.shields.io/npm/v/exam.svg)](//www.npmjs.com/package/exam)
 [![Downloads](https://img.shields.io/npm/dm/exam.svg)](//www.npmjs.com/package/exam)
@@ -28,17 +28,17 @@ npm install --save-dev exam
 
 Write some tests in `test/*.js`:
 ```js
-var a = [1, 2, 3];
+var a = [1, 2, 3]
 describe('Array.indexOf()', function () {
   it("returns -1 when a value isn't found", function () {
-    is(a.indexOf(0), -1);
-    is(a.indexOf(-1), -1);
-  });
+    is(a.indexOf(0), -1)
+    is(a.indexOf(-1), -1)
+  })
   it("returns an index when a value is found", function () {
-    is(a.indexOf(1), 0);
-    is(a.indexOf(2), 1);
-  });
-});
+    is(a.indexOf(1), 0)
+    is(a.indexOf(2), 1)
+  })
+})
 ```
 
 Run tests:
@@ -153,16 +153,16 @@ library that throws an AssertionError.
 
 You can also use `is` methods to make assertions:
 ```js
-var a = [1, 2, 3];
-is.array(a);
-is.same(a, [1,2,3]);
-is.number(a[0]);
-is.is(a[0], 1);
+var a = [1, 2, 3]
+is.array(a)
+is.same(a, [1,2,3])
+is.number(a[0])
+is.is(a[0], 1)
 ```
 
 Each `is` method also returns `is` so you can chain, if that's your thing:
 ```js
-var a = [1, 2, 3];
+var a = [1, 2, 3]
 is
   .array(a)
   .same(a, [1,2,3])
@@ -176,9 +176,9 @@ is
 The `is.is` function is also known simply as `is`, allowing a shorthand strict
 equality assertion.
 ```js
-var one = 1;
-is(one, 1);   // No error.
-is(one, '1'); // Throws an AssertionError.
+var one = 1
+is(one, 1)   // No error.
+is(one, '1') // Throws an AssertionError.
 ```
 
 It asserts that `actual` is equal to `expected`, and that they are of the same
@@ -223,12 +223,12 @@ Asserts that the value is of the expected type, expressed as a case-sensitive
 string returned by `typeof`.
 
 ```js
-var num = 1;
+var num = 1
 var one = '1'
-is.type(num, 'number'); // No error.
-is.type(one, 'number'); // Throws an AssertionError.
-is.type(num, 'Number'); // Throws an AssertionError.
-is.type(one, 'string'); // No error.
+is.type(num, 'number') // No error.
+is.type(one, 'number') // Throws an AssertionError.
+is.type(num, 'Number') // Throws an AssertionError.
+is.type(one, 'string') // No error.
 ```
 
 #### is.notType(value, expectedType)
@@ -387,12 +387,12 @@ describe('myConsole', function () {
   it('calls console.log', function (done) {
     mock(console, {
       log: function () {
-        unmock(console);
-        done();
+        unmock(console)
+        done()
       }
-    });
-  });
-});
+    })
+  })
+})
 ```
 
 ### mock(object, mockedProperties)
@@ -414,11 +414,11 @@ describe('myConsole', function () {
   it('.log does not throw an error', function () {
     mock(console, {
       log: mock.ignore()
-    });
+    })
     // This logs nothing, despite calling console.log('a').
-    myConsole.log('a');
-  });
-});
+    myConsole.log('a')
+  })
+})
 ```
 
 ### mock.count()
@@ -430,13 +430,13 @@ describe('myConsole', function () {
   it('.log calls console.log once', function () {
     mock(console, {
       log: mock.count()
-    });
-    is(console.log.value, 0);
-    myConsole.log('a');
-    is(console.log.value, 1);
-    unmock(console);
-  });
-});
+    })
+    is(console.log.value, 0)
+    myConsole.log('a')
+    is(console.log.value, 1)
+    unmock(console)
+  })
+})
 ```
 
 ### mock.concat([delimiter])
@@ -449,15 +449,15 @@ describe('myConsole', function () {
   it('.log calls console.log', function () {
     mock(console, {
       log: mock.concat()
-    });
-    is(console.log.value, '');
-    myConsole.log('a');
-    is(console.log.value, 'a');
-    myConsole.log('b');
-    is(console.log.value, 'ab');
-    unmock(console);
-  });
-});
+    })
+    is(console.log.value, '')
+    myConsole.log('a')
+    is(console.log.value, 'a')
+    myConsole.log('b')
+    is(console.log.value, 'ab')
+    unmock(console)
+  })
+})
 ```
 
 If a delimiter is supplied, it will be used to separate the concatenated
@@ -468,15 +468,15 @@ describe('myConsole', function () {
   it('.log calls console.log', function () {
     mock(console, {
       log: mock.concat(',')
-    });
-    is(console.log.value, '');
-    myConsole.log(1);
-    is(console.log.value, '1');
-    myConsole.log(2);
-    is(console.log.value, '1,2');
-    unmock(console);
-  });
-});
+    })
+    is(console.log.value, '')
+    myConsole.log(1)
+    is(console.log.value, '1')
+    myConsole.log(2)
+    is(console.log.value, '1,2')
+    unmock(console)
+  })
+})
 ```
 
 ### mock.args([index])
@@ -489,15 +489,15 @@ describe('myConsole', function () {
   it('.log calls console.log with multiple arguments', function () {
     mock(console, {
       log: mock.args()
-    });
-    is.same(console.log.value, []);
-    myConsole.log('a');
-    is.same(console.log.value, [{0: 'a'}]);
-    myConsole.log('b', 'c');
-    is.same(console.log.value, [{0: 'a'}, {0: 'b', 1: 'c'}]);
-    unmock(console);
-  });
-});
+    })
+    is.same(console.log.value, [])
+    myConsole.log('a')
+    is.same(console.log.value, [{0: 'a'}])
+    myConsole.log('b', 'c')
+    is.same(console.log.value, [{0: 'a'}, {0: 'b', 1: 'c'}])
+    unmock(console)
+  })
+})
 ```
 
 If an index is supplied, it only pushes one of the arguments.
@@ -507,15 +507,15 @@ describe('myConsole', function () {
   it('.log calls console.log', function () {
     mock(console, {
       log: mock.args(0)
-    });
-    is.same(console.log.value, []);
-    myConsole.log(1);
-    is.same(console.log.value, [1]);
-    myConsole.log(2, 3);
-    is.same(console.log.value, [1, 2]);
-    unmock(console);
-  });
-});
+    })
+    is.same(console.log.value, [])
+    myConsole.log(1)
+    is.same(console.log.value, [1])
+    myConsole.log(2, 3)
+    is.same(console.log.value, [1, 2])
+    unmock(console)
+  })
+})
 ```
 
 ### mock.fs([config][, createNewFs])
@@ -533,14 +533,14 @@ var fs = mock.fs({
     'empty-dir': {} // Empty directory.
   },
   'path/to/some.png': new Buffer([8, 6, 7, 5, 3, 0, 9])
-});
+})
 
 // Verify that we can read content.
-var content = fs.readFileSync('path/to/fake/dir/some-file.txt');
-is(content.toString(), 'file content here');
+var content = fs.readFileSync('path/to/fake/dir/some-file.txt')
+is(content.toString(), 'file content here')
 
 // Restore Node's built-in file system.
-unmock(fs);
+unmock(fs)
 ```
 
 Calling `mock.fs` sets up a mock file system and returns a reference to Node's
@@ -608,14 +608,14 @@ Creates a mock file. Supported properties:
  * **mtime** - `Date` The last file modification time.  Defaults to `new Date()`.  Updated when file contents change.
 
 ```js
-var old = new Date(1);
+var old = new Date(1)
 mock({
   foo: mock.file({
     content: 'file content here',
     ctime: old,
     mtime: old
   })
-});
+})
 ```
 
 ### mock.directory(properties)
@@ -640,7 +640,7 @@ mock({
       file2: new Buffer([8, 6, 7, 5, 3, 0, 9])
     }
   })
-});
+})
 ```
 
 ### mock.symlink(properties)
@@ -663,7 +663,7 @@ mock({
       path: 'regular-file'
     })
   }
-});
+})
 ```
 
 ### unmock(object)
@@ -799,11 +799,11 @@ itself as a function that accepts an `options` object containing the arguments
 you would pass to the CLI:
 
 ```js
-var exam = require('exam');
+var exam = require('exam')
 exam({
   paths: ['test'],
   watch: true
-});
+})
 ```
 
 
