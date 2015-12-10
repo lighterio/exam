@@ -1,4 +1,4 @@
-# <a href="http://lighter.io/exam" style="font-size:40pxtext-decoration:none"><img src="https://cdn.rawgit.com/lighterio/lighter.io/master/public/exam.svg" style="width:90pxheight:90px"> Exam</a>
+# <a href="http://lighter.io/exam" style="font-size:40px;text-decoration:none"><img src="https://cdn.rawgit.com/lighterio/lighter.io/master/public/exam.svg" style="width:90px;height:90px"> Exam</a>
 [![Chat](https://badges.gitter.im/chat.svg)](//gitter.im/lighterio/public)
 [![Version](https://img.shields.io/npm/v/exam.svg)](//www.npmjs.com/package/exam)
 [![Downloads](https://img.shields.io/npm/dm/exam.svg)](//www.npmjs.com/package/exam)
