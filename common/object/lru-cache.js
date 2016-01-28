@@ -8,7 +8,6 @@
 
 var Type = require('./type')
 module.exports = Type.extend({
-
   /**
    * Create a Cache object based on options.
    */
@@ -57,7 +56,6 @@ module.exports = Type.extend({
         item.link(this)
       }
     } else {
-
       // Create an item and add it to the head of the loop.
       item = this.map[key] = new Item(key, value)
       item.link(this)
@@ -177,7 +175,6 @@ function Item (key, value) {
 }
 
 Item.prototype = {
-
   /**
    * Detach this item from the doubly-linked loop.
    */

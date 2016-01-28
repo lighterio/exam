@@ -13,7 +13,7 @@ var mkdirp = module.exports = function (path, mode, fn) {
   path = resolve(path)
   if (typeof mode === 'function') {
     fn = mode
-    mode = 0777 & (~mkdirp.umask)
+    mode = 511 & (~mkdirp.umask)
   }
   mk(path, mode, fn || function () {})
 }

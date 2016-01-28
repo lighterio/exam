@@ -16,7 +16,6 @@ var argv = process.argv.slice(2)
  * Given a configuration, invoke a command line interface.
  */
 var cli = module.exports = function cli (config) {
-
   // Set defaults for config values where necessary.
   config = config || {}
   var main = process.mainModule.filename
@@ -91,8 +90,7 @@ cli.error = function (message) {
 cli.require = function (dir, command) {
   try {
     config = require(dir + '/' + command)
-  }
-  catch (e) {
+  } catch (e) {
     return cli.error('Could not find a "' + command + '" command in "' + shortenPath(dir) + '".')
   }
   return config
@@ -115,8 +113,7 @@ cli.help = function (config) {
     var files
     try {
       files = fs.readdirSync(dir)
-    }
-    catch (e) {
+    } catch (e) {
       return cli.error('Could not read commands from "' + shortenPath(dir) + '".')
     }
     files.forEach(function (file) {
@@ -138,11 +135,11 @@ cli.help = function (config) {
       options.forEach(function (option) {
         if (!/HIDDEN/.test(option)) {
           text += '\n  ' + option
-            .replace(/\s*(\(\w+\))?\s*(\[.+?\])?$/, function (match, a, b) {
-              return b ? '. ' + ('(default: ' + b.substr(1, b.length - 2) + ')').gray : '.'
-            })
-            .replace(/(<[a-z]+>)/g, '$1'.yellow)
-            .replace(/^(.*  )/, '$1'.cyan)
+              .replace(/\s*(\(\w+\))?\s*(\[.+?\])?$/, function (match, a, b) {
+                return b ? '. ' + ('(default: ' + b.substr(1, b.length - 2) + ')').gray : '.'
+              })
+              .replace(/(<[a-z]+>)/g, '$1'.yellow)
+              .replace(/^(.*  )/, '$1'.cyan)
         }
       })
     }
@@ -236,8 +233,7 @@ cli.options = function (config) {
       } else if (type === 'RegExp') {
         try {
           value = new RegExp(value)
-        }
-        catch (e) {
+        } catch (e) {
           return cli.error('The "' + name + '" option received an invalid expression: "' + value + '".')
         }
       } else if (type === 'Number') {

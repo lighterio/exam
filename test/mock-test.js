@@ -2,7 +2,6 @@ var a = []
 var t = require('timers')
 
 describe('mock', function () {
-
   it('mocks and unmocks properties that exist', function () {
     mock(console, {
       log: mock.concat()
@@ -59,7 +58,6 @@ describe('mock', function () {
   })
 
   describe('.count', function () {
-
     it('counts calls', function () {
       mock(a, {
         join: mock.count()
@@ -75,7 +73,6 @@ describe('mock', function () {
   })
 
   describe('.concat', function () {
-
     it('concatenates strings', function () {
       mock(a, {
         join: mock.count()
@@ -105,13 +102,12 @@ describe('mock', function () {
   })
 
   describe('.args', function () {
-
     xit('stores arguments', function () {
       mock(a, {
         push: mock.args()
       })
       a.push(1)
-      is.same(a.push.value, [{0:1}])
+      is.same(a.push.value, [{0: 1}])
       a.push(2)
       is.same(a.push.value, [{0: 1}, {0: 2}])
       a.push(1, 2)
@@ -145,7 +141,6 @@ describe('mock', function () {
   var describeFs = supportMockFs && !isIstanbul ? describe : describe.skip
 
   describeFs('.fs', function () {
-
     afterEach(unmock.fs)
 
     it('creates files and directories', function (done) {
@@ -168,7 +163,7 @@ describe('mock', function () {
       }
     })
 
-    it('can leave Node\'s built-in fs alone', function (done) {
+    it("can leave Node's built-in fs alone", function (done) {
       var fs = require('fs')
       mock.fs({'a.txt': 'A'}, true)
       fs.readFile('a.txt', function (err) {
@@ -180,7 +175,6 @@ describe('mock', function () {
   })
 
   describeFs('.file', function () {
-
     afterEach(unmock.fs)
 
     it('creates a file', function () {
@@ -197,7 +191,6 @@ describe('mock', function () {
   })
 
   describe('.time', function () {
-
     it('freezes time', function () {
       var time = 1412637494591
       mock.time(time)
@@ -219,7 +212,6 @@ describe('mock', function () {
     })
 
     describe('.add', function () {
-
       it('adds time', function () {
         var time = 1412637494591
         mock.time(time)
@@ -246,9 +238,7 @@ describe('mock', function () {
     })
 
     describe('.speed', function () {
-
       it.skip('speeds mock time', function (done) {
-
         var time = 1412637494591
         var speed = 99
         mock.time(time)

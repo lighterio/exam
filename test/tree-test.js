@@ -1,7 +1,6 @@
 var called = {}
 
 describe('tree', function () {
-
   describe('timeout', function () {
     this.timeout(10)
 

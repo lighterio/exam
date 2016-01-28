@@ -13,7 +13,6 @@ require(dir + '/common/json/read-stream')
 
 // Exam exposes a function that runs a test suite.
 var exam = module.exports = function (options) {
-
   // Save the state of a test run.
   var waits, testFiles, data, isRunning, finished
 
@@ -112,7 +111,6 @@ var exam = module.exports = function (options) {
    * Read or recurse the file path or directory.
    */
   function findTests () {
-
     var optionsPattern = /\/\.exam\.js(on)?$/
 
     // TODO: Support CoffeeScript, etc.
@@ -265,12 +263,10 @@ var exam = module.exports = function (options) {
    * Receive the result of running one or more test files.
    */
   function receiveResult (result) {
-
     // If another process put us in "only" mode, add counts to "skipped".
     if (data.hasOnly && !result.hasOnly) {
       data.skipped += total(result)
     } else {
-
       // If entering "only" mode now, add previous counts to "skipped".
       if (result.hasOnly && !data.hasOnly) {
         var skip = total(data)
@@ -289,7 +285,7 @@ var exam = module.exports = function (options) {
       data.stubbed += result.stubbed
 
       // Add to errors and/or log messages (where applicable).
-      var keys = ['errors', 'logs'];
+      var keys = ['errors', 'logs']
       keys.forEach(function (key) {
         if (result[key]) {
           result[key].forEach(function (item) {
@@ -341,13 +337,13 @@ var exam = module.exports = function (options) {
       }
       mkdirp(cacheDir, function (e) {
         if (e) {
-          stream.write('Failed to create exam cache directory: "' + cacheDir + '".\n' +  e.stack)
+          stream.write('Failed to create exam cache directory: "' + cacheDir + '".\n' + e.stack)
           end()
         } else {
           var content = JSON.stringify(manifest, null, '  ')
           fs.writeFile(manifestPath, content, function (e) {
             if (e) {
-              stream.write('Failed to write manifest: "' + manifestPath + '".\n' +  e.stack)
+              stream.write('Failed to write manifest: "' + manifestPath + '".\n' + e.stack)
             }
             end()
           })
@@ -399,7 +395,6 @@ exam.version = require(dir + '/package.json').version
 // If Node loaded this file directly, get options and run tests.
 if (process.mainModule === module) {
   process.nextTick(function () {
-
     // Get command line interface options.
     var options = cli({
       options: [

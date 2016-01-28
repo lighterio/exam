@@ -1,5 +1,4 @@
 describe('onlyTest', function () {
-
   it.skip('skips this test', function () {
     is.fail('ran a skipped test')
   })

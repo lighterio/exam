@@ -23,4 +23,3 @@ var shortenPath = module.exports = function (path) {
 var cwd = [process.cwd() + '/', './']
 var home = [process.env.HOME + '/', '~/']
 shortenPath.dirs = [cwd, home]
-

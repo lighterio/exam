@@ -12,7 +12,6 @@ function invoke (options, done) {
 }
 
 xdescribe('Scenarios', function () {
-
   describe('Empty scenario', function () {
     it('runs with options', function (done) {
       invoke(

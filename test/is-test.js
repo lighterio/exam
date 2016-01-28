@@ -40,9 +40,9 @@ describe('is', function () {
   it('.fail emits an error when `is` is an emitter', function (done) {
     unmock(is)
     mock(is, {emit: function (event, result) {
-      assert.strictEqual(event, 'result')
-      assert(result instanceof Error)
-      done()
+        assert.strictEqual(event, 'result')
+        assert(result instanceof Error)
+        done()
     }})
     is.fail()
   })
@@ -60,8 +60,8 @@ describe('is', function () {
     var thing = new Thing()
     var hi = Thing.prototype.hi.toString()
     is(is.stringify(Thing), Thing.toString())
-    is(is.stringify(thing), '{what:\"what?\",hi:' + Thing.prototype.hi.toString() + '}')
-    is(is.stringify({for:1}), '{for:1}')
+    is(is.stringify(thing), '{what:"what?",hi:' + Thing.prototype.hi.toString() + '}')
+    is(is.stringify({for: 1}), '{for:1}')
     is(is.stringify([[[[[[[[[[[1]]]]]]]]]]]), '[[[[[[[[[[[1]]]]]]]]]]]')
     is(is.stringify([[[[[[[[[[[{}]]]]]]]]]]]), '[[[[[[[[[[[{}]]]]]]]]]]]')
   })

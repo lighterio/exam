@@ -24,7 +24,7 @@ var scriptify = module.exports = JSON.scriptify = function (value, stack) {
     }
     if (value instanceof Error) {
       return '(function(){var e=new Error(' + scriptify(value.message) + ');' +
-        'e.stack=' + scriptify(value.stack) + ';return e})()'
+      'e.stack=' + scriptify(value.stack) + ';return e})()'
     }
     if (value instanceof RegExp) {
       return '/' + value.source + '/' + (value.global ? 'g' : '') + (value.ignoreCase ? 'i' : '') + (value.multiline ? 'm' : '')
