@@ -28,25 +28,36 @@ var sixty = '60'
 describe('exam-cover', function () {
   // Remember spawn arguments.
   var args
+  var exitCodes
+  var command
+  var actualExitCode
 
   // Simulate a child process with an emitter-like "on" method.
   var proc = {
     on: function (event, fn) {
-      fn(0)
+      fn(exitCodes[command])
       return proc
     }
+  }
+  var exitFn = function (exitCode) {
+    actualExitCode = exitCode
   }
 
   beforeEach(function () {
     args = []
+    exitCodes = {
+      cover: 0,
+      'check-coverage': 0
+    }
     mock(child, {
-      spawn: function () {
+      spawn: function (cli, options) {
         args.push(arguments)
+        command = options[0]
         return proc
       }
     })
     mock(process, {
-      exit: mock.count()
+      exit: exitFn
     })
     delete require.cache[cwd + '/exam-cover.js']
   })
@@ -158,5 +169,14 @@ describe('exam-cover', function () {
     is(args[1][1][1], lines)
     is(args[1][1][2], sixty)
     is(args[1][1].length, 3)
+  })
+  
+  it('should exit with error status when check-coverage arguments provided and test failed', function () {
+    process.argv = [node, coverCli, statements, sixty]
+    exitCodes.cover = 1
+    exitCodes['check-coverage'] = 0
+    require('../exam-cover')
+    
+    is(actualExitCode, exitCodes.cover)
   })
 })

@@ -56,14 +56,14 @@ var cover = module.exports = spawn(istanbulCli, coverArgs, {
   stdio: 'inherit'
 })
 
-cover.on('exit', function (code) {
-  if (checkCoverageArgs.length === 1) {
-    return process.exit(code)
+cover.on('exit', function (coverCode) {
+  if (checkCoverageArgs.length < 2) {
+    return process.exit(coverCode)
   }
   var check = spawn(istanbulCli, checkCoverageArgs, {
     stdio: 'inherit'
   })
-  check.on('exit', function (code) {
-    process.exit(code)
+  check.on('exit', function (checkCode) {
+    process.exit(checkCode || coverCode)
   })
 })
