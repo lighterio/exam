@@ -1,5 +1,8 @@
 # Exam Change Log
 
+## v1.4.1 - 2016-06-08
+* `patch` Mad exam-cover fail if tests fail and coverage minimums pass.
+
 ## v1.4.0 - 2016-06-08
 * `patch` Made exam-cover return a non-zero exit code if tests fail.
 * `minor` Added minimum coverage options (like --statements) to exam-cover.
