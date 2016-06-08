@@ -1,5 +1,9 @@
 # Exam Change Log
 
+## v1.4.0 - 2016-06-08
+* `patch` Made exam-cover return a non-zero exit code if tests fail.
+* `minor` Added minimum coverage options (like --statements) to exam-cover.
+
 ## v1.3.0 - 2015-11-16
 * `minor` Made exam-cover and exam-coveralls accept istanbul arguments.
 
