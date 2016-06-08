@@ -122,7 +122,7 @@ describe('External service', function () {
 ### Assertions and Mocks
 
 #### is(actual, expected)
-Asserts equality.
+Asserts strict equality.
 
 #### mock(object, properties)
 Temporarily decorates an object with values from a mock properties object.
@@ -173,7 +173,7 @@ is
 ### Comparisons
 
 #### is(actual, expected)
-The `is.is` function is also known simply as `is`, allowing a shorthand strict
+The `is.is` function is also available simply as `is`, allowing a shorthand strict
 equality assertion.
 ```js
 var one = 1
