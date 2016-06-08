@@ -7,20 +7,63 @@ Usage:
 Description:
   Run exam tests using the istanbul cover command.
 
+  In addition to exam options, exam-cover supports arguments for
+  checking coverage after the test suite has been instrumented
+  and executed:
+
+  --statements <minimum>  Requires at least <minimum> statement coverage
+  --branches <minimum>    Requires at least <minimum> branch coverage
+  --functions <minimum>   Requires at least <minimum> function coverage
+  --lines <minimum>       Requires at least <minimum> line coverage
+
 */
 var spawn = require('child_process').spawn
 var examCli = __dirname + '/exam.js'
 var istanbulCli = __dirname + '/node_modules/istanbul/lib/cli.js'
 
 var args = process.argv
-var dash = args.indexOf('--') + 1
+var dashes = args.indexOf('--') + 1
 args.splice(0, 2, 'cover', examCli, '--')
 
-if (dash) {
-  args.splice(dash, 1)
-  var istanbulArgs = args.splice(dash, args.length - dash)
+if (dashes) {
+  args.splice(dashes, 1)
+  var istanbulArgs = args.splice(dashes, args.length - dashes)
   istanbulArgs.splice(0, 0, 2, 0)
   args.splice.apply(args, istanbulArgs)
 }
 
-module.exports = spawn(istanbulCli, args, {stdio: 'inherit'})
+var coverArgs = []
+var checkCoverageArgs = ['check-coverage']
+
+// Iterate over the arguments, removing minimum coverage requirement options
+// and saving them for the check-coverage command.
+for (var i = 0, l = args.length; i < l; i++) {
+  var arg = args[i]
+  switch (arg) {
+    case '--statements':
+    case '--branches':
+    case '--functions':
+    case '--lines':
+      checkCoverageArgs.push(arg, args[++i] || 0)
+      break
+    default:
+      coverArgs.push(arg)
+      break
+  }
+}
+
+var cover = module.exports = spawn(istanbulCli, coverArgs, {
+  stdio: 'inherit'
+})
+
+cover.on('exit', function (code) {
+  if (checkCoverageArgs.length === 1) {
+    return process.exit(code)
+  }
+  var check = spawn(istanbulCli, checkCoverageArgs, {
+    stdio: 'inherit'
+  })
+  check.on('exit', function (code) {
+    process.exit(code)
+  })
+})

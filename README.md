@@ -694,7 +694,7 @@ The `bench` function's `this` context has properties which can be modified:
 
 Exam can be run using the command line interface, or by requiring the module.
 
-### Command line
+### `exam` command
 
 Install exam globally (using sudo if your environment
 requires root access to install a Node binary):
@@ -705,7 +705,7 @@ sudo npm install -g exam
 
 #### Usage
 ```
-exam [options] [paths...]
+exam [OPTIONS] [PATHS...]
 ```
 
 For example, to run "test/a-test.js" and "test/b-test.js" in multiple processes
@@ -730,10 +730,10 @@ when a change is detected.
 **-V, --version**<br>
 Show the version number.
 
-**-r, --require <modules>**<br>
+**-r, --require &lt;modules&gt;**<br>
 Require a comma-delimited list of modules.
 
-**-R, --reporter <name>**<br>
+**-R, --reporter &lt;name&gt;**<br>
 Which library will be used to output results. Options include "console",
 "tap", "xunit" and "counts". *Default: "console"*.
 
@@ -745,7 +745,7 @@ add those functions to the `exam` object.
 Use the default `test` directory, or any directories specified as `paths`, and
 read their contents recursively, running any encountered files as tests.
 
-**-p, --parser <parser>**<br>
+**-p, --parser &lt;parser&gt;**<br>
 Which EcmaScript parser will be used to handle syntax errors. Options include
 "acorn" and "esprima". *Default: "acorn"*.
 
@@ -755,10 +755,10 @@ Exit after the first test failure.
 **-a, --assertive**<br>
 Stop a test after one failed assertion.
 
-**-g, --grep <regexp>**<br>
+**-g, --grep &lt;regexp&gt;**<br>
 Only run files/tests that match a regular expression.
 
-**-i, --ignore <regexp>**<br>
+**-i, --ignore &lt;regexp&gt;**<br>
 Exclude files/tests that match a regular expression.
 
 **-d, --debug**<br>
@@ -767,13 +767,13 @@ Run `node` with the --debug flag.
 **-m, --multi-process**<br>
 Spawn child processes, creating a cluster of test runners.
 
-**-t, --timeout <millis>**<br>
+**-t, --timeout &lt;millis&gt;**<br>
 Test case timeout in milliseconds. (Default: 1000)
 
-**-s, --slow <millis>**<br>
+**-s, --slow &lt;millis&gt;**<br>
 Threshold for a slow test (yellow) warning in milliseconds. (Default: 10)
 
-**-S, --very-slow <millis>**<br>
+**-S, --very-slow &lt;millis&gt;**<br>
 Threshold for a very slow (red) warning in milliseconds. (Default: 100)
 
 **-A, --hide-ascii**<br>
@@ -790,6 +790,35 @@ Run benchmarks along with the test suite.
 
 **-T, --bench-time**<br>
 Run each benchmark for a specified number of milliseconds. (Default: 60000)
+
+### `exam-cover` command
+
+The `exam-cover` command checks coverage using `istanbul`.
+  Run exam tests using the istanbul cover command.
+
+
+#### Usage
+
+exam-cover [EXAM_ARGS] [-- ISTANBUL_ARGS]
+
+#### Options
+
+In addition to the `exam` options above, `exam-cover` supports arguments for
+checking coverage (via `istanbul check-coverage`) after the test suite has been
+instrumented and executed. Each **&lt;minimum&gt;** is expressed as a whole number
+percent, such as 70.
+
+**--statements &lt;minimum&gt;**<br>
+Require at least &lt;minimum&gt; statement coverage. (Default: 0)
+
+**--branches &lt;minimum&gt;**<br>
+Require at least &lt;minimum&gt; branch coverage. (Default: 0)
+
+**--functions &lt;minimum&gt;**<br>
+Require at least &lt;minimum&gt; function coverage. (Default: 0)
+
+**--lines &lt;minimum&gt;**<br>
+Require at least &lt;minimum&gt; line coverage. (Default: 0)
 
 
 ### Module
