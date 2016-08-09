@@ -1,5 +1,8 @@
 # Exam Change Log
 
+## v1.4.3 - 2016-08-09
+* `patch` Unbundled dependencies to fix multiple exam 1.4.2 dependency issues.
+
 ## v1.4.2 - 2016-08-08
 * `patch` Make "after" hooks execute just once per suite.
 * `patch` Prevent "mock" from losing original properties when called twice.
