@@ -45,6 +45,17 @@ describe('mock', function () {
     unmock(a)
   })
 
+  it('restores after mocking twice', function () {
+    mock(a, {
+      join: mock.count()
+    })
+    mock(a, {
+      join: mock.args()
+    })
+    unmock(a)
+    is(a.join, Array.prototype.join)
+  })
+
   it('ignores duplicate unmocking', function () {
     mock(a, {
       join: mock.count()

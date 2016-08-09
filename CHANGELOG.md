@@ -1,7 +1,8 @@
 # Exam Change Log
 
 ## v1.4.2 - 2016-08-08
-* `patch` Let "after" block only executes one time per suite.
+* `patch` Make "after" hooks execute just once per suite.
+* `patch` Prevent "mock" from losing original properties when called twice.
 
 ## v1.4.1 - 2016-06-08
 * `patch` Mad exam-cover fail if tests fail and coverage minimums pass.
