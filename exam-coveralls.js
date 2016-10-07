@@ -11,7 +11,7 @@ Description:
 
 var fs = require('fs')
 var spawn = require('child_process').spawn
-var coverallsCli = __dirname + '/node_modules/coveralls/bin/coveralls.js'
+var coverallsCli = require.resolve('coveralls/bin/coveralls.js')
 
 var cover = require('./exam-cover')
 

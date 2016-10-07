@@ -1,5 +1,8 @@
 # Exam Change Log
 
+## v1.4.4 - 2016-10-07
+* `patch` Made exam-cover work with npm 3.
+
 ## v1.4.3 - 2016-08-09
 * `patch` Unbundled dependencies to fix multiple exam 1.4.2 dependency issues.
 

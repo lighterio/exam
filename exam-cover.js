@@ -18,8 +18,8 @@ Description:
 
 */
 var spawn = require('child_process').spawn
-var examCli = __dirname + '/exam.js'
-var istanbulCli = __dirname + '/node_modules/istanbul/lib/cli.js'
+var examCli = require.resolve('exam/exam.js')
+var istanbulCli = require.resolve('istanbul/lib/cli.js')
 
 var args = process.argv
 var dashes = args.indexOf('--') + 1
