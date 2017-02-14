@@ -3,7 +3,7 @@
 [![Version](https://img.shields.io/npm/v/exam.svg)](//www.npmjs.com/package/exam)
 [![Downloads](https://img.shields.io/npm/dm/exam.svg)](//www.npmjs.com/package/exam)
 [![Build](https://img.shields.io/travis/lighterio/exam.svg)](//travis-ci.org/lighterio/exam)
-[![Coverage](https://img.shields.io/coveralls/lighterio/exam/master.svg)](//coveralls.io/r/lighterio/exam)
+[![Coverage](https://img.shields.io/codecov/c/github/lighterio/exam/master.svg)](//codecov.io/gh/lighterio/exam)
 [![Style](https://img.shields.io/badge/code%20style-standard-brightgreen.svg)](//www.npmjs.com/package/standard)
 
 
