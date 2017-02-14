@@ -18,7 +18,8 @@ Description:
 
 */
 var spawn = require('child_process').spawn
-var examCli = require.resolve('exam/exam.js')
+var examDir = __dirname
+var examCli = examDir + '/exam.js'
 var istanbulCli = require.resolve('istanbul/lib/cli.js')
 
 var args = process.argv
