@@ -1,5 +1,8 @@
 # Exam Change Log
 
+## v2.1.0 - 2017-02-23
+* `minor` Replaced several common libraries with lighter dependencies.
+
 ## v2.0.0 - 2017-02-13
 * `major` Removed coveralls support.
 
