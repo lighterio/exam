@@ -1,0 +1,15 @@
+{
+  "standard": {
+    "globals": [
+      "describe",
+      "it",
+      "before",
+      "after",
+      "beforeEach",
+      "afterEach",
+      "is",
+      "mock",
+      "bench"
+    ]
+  }
+}

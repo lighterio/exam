@@ -12,5 +12,4 @@ describe('onlyTest', function () {
   })
 
   it('should have a stubbed test')
-
 })

@@ -782,7 +782,7 @@ Do not show ASCII art before the test run.
 **-P, --hide-progress**<br>
 Do not show passing/failing dots as tests run.
 
-**-C, --no-colors**<br>
+**-C, --no-color**<br>
 Turn off color console logging.
 
 **-B, --bench**<br>

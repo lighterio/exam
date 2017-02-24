@@ -9,7 +9,7 @@ var tree = require(dir + '/lib/tree')
 var mkdirp = require(dir + '/common/fs/mkdirp')
 var deepWatch = require(dir + '/common/fs/deep-watch')
 var cli = require(dir + '/common/process/cli')
-require(dir + '/common/json/read-stream')
+var stringify = require('lighter-json').stringify
 
 // Exam exposes a function that runs a test suite.
 var exam = module.exports = function (options) {
@@ -238,7 +238,7 @@ var exam = module.exports = function (options) {
       assignments.forEach(function (testFiles) {
         args.push(testFiles.join(','))
         var child = spawn(execPath, args)
-        var input = JSON.readStream(child.stdout)
+        var input = JSON.reader(child.stdout)
         input.on('string', function (text) {
           stream.write(text)
         })
@@ -340,7 +340,7 @@ var exam = module.exports = function (options) {
           stream.write('Failed to create exam cache directory: "' + cacheDir + '".\n' + e.stack)
           end()
         } else {
-          var content = JSON.stringify(manifest, null, '  ')
+          var content = stringify(manifest, null, '  ')
           fs.writeFile(manifestPath, content, function (e) {
             if (e) {
               stream.write('Failed to write manifest: "' + manifestPath + '".\n' + e.stack)
@@ -386,7 +386,6 @@ var exam = module.exports = function (options) {
       }
     }
   }
-
 }
 
 // Expose the module version.
@@ -417,11 +416,11 @@ if (process.mainModule === module) {
         '-y, --very-slow <millis>   Very slow (red warning) threshold in milliseconds (Number) [100]',
         '-A, --hide-ascii           Do not show ASCII art before the run',
         '-P, --hide-progress        Do not show dots as tests run',
-        '-C, --no-colors            Turn off color console logging',
+        '-C, --no-color             Turn off color console logging',
         '-B, --bench                Run benchmarks along with the test suite',
         '-T, --bench-time <millis>  Milliseconds allocated to each benchmark (Number) [60000]',
-        '-l, --linter <name>        Linter ("lighter-lint" or "none") [none]',
-        '-f, --files <files>        HIDDEN (Array)'
+        '-f, --files <files>        HIDDEN (Array)',
+        '--no-colors                HIDDEN'
       ],
       extras: 'paths',
       version: exam.version

@@ -8,9 +8,9 @@
  * @import process/cache
  */
 var fs = require('fs')
-var colors = require('../../common/string/colors')
+var colors = require('lighter-colors')
 var shortenPath = require('../../common/fs/shorten-path')
-var processCache = require('../../common/process/cache')
+var processCache = require('lighter-lru-cache').shared
 
 var snippetStack = module.exports = function (stack, options) {
   var arrow = (process.platform === 'win32' ? '\u2192' : '\u279C') + ' '

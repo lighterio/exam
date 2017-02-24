@@ -2,15 +2,12 @@
  * Construct a command line interface with options, and potentially multiple commands.
  *
  * @origin https://github.com/lighterio/lighter-common/common/process/cli.js
- * @version 0.0.1
- * @import string/colors
- * @import fs/shorten-path
  */
 
 var fs = require('fs')
-var colors = require('../string/colors')
 var shortenPath = require('../fs/shorten-path')
 var argv = process.argv.slice(2)
+require('lighter-colors')
 
 /**
  * Given a configuration, invoke a command line interface.

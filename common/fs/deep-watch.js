@@ -10,7 +10,7 @@
 
 var fork = require('child_process').fork
 var fs = require('fs')
-var Emitter = require('../event/emitter')
+var Emitter = require('lighter-emitter')
 var dirname = require('path').dirname
 
 /**
