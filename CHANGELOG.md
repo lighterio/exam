@@ -1,6 +1,6 @@
 # Exam Change Log
 
-## v2.1.1 - 2017-02-23
+## v2.1.1 - 2017-12-29
 * `patch` Fixed parser wrapping issue.
 
 ## v2.1.0 - 2017-02-23
