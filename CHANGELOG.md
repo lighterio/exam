@@ -1,5 +1,8 @@
 # Exam Change Log
 
+## v2.1.1 - 2017-02-23
+* `patch` Fixed parser wrapping issue.
+
 ## v2.1.0 - 2017-02-23
 * `minor` Replaced several common libraries with lighter dependencies.
 
@@ -20,7 +23,7 @@
 * `patch` Prevent "mock" from losing original properties when called twice.
 
 ## v1.4.1 - 2016-06-08
-* `patch` Mad exam-cover fail if tests fail and coverage minimums pass.
+* `patch` Made exam-cover fail if tests fail and coverage minimums pass.
 
 ## v1.4.0 - 2016-06-08
 * `patch` Made exam-cover return a non-zero exit code if tests fail.
